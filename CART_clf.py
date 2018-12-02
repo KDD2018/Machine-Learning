@@ -23,7 +23,6 @@ def label_uniq_cnt(data):
     Args: data(list) 原始数据集
     Returns: label_uniq_cnt(int) 样本中标签的类别数
     '''
-
     label_uniq_cnt = {}
     for x in data:
         label = x[len(x) - 1]  # 取得每个样本的类标签label
@@ -38,7 +37,6 @@ def cal_gini_index(data):
     Args: data(list): 数据集
     Returns: Gini指数
     '''
-
     total_sample = len(data)
     if len(data) == 0:
         return 0
@@ -72,7 +70,6 @@ def build_tree(data):
     Args: data(list) 训练样本
     Returns: node 树的根节点
     '''
-
     # 构建决策树，返回决策树的根节点  
     if len(data) == 0:
         return Node()

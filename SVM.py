@@ -32,7 +32,6 @@ def calc_kernel(train_x, kernel_option):
         kernel_matrix[:, i] = cal_kernel_value(train_x, train_x[i, :], kernel_option)
     return kernel_matrix
 
-
 def cal_kernel_value(train_x, train_x_i, kernel_option):
     '''
     Desc: 计算样本之间的核函数值
@@ -55,7 +54,6 @@ def cal_kernel_value(train_x, train_x_i, kernel_option):
         kernel_value = train_x * train_x_i.T
     return kernel_value
 
-
 def cal_error(svm, alpha_k):
     '''
     Desc: 计算误差
@@ -66,7 +64,6 @@ def cal_error(svm, alpha_k):
     output_k = float(np.multiply(svm.alphas, svm.train_y).T * svm.kernel_mat[:, alpha_k] + svm.b)
     error_k = output_k - float(svm.train_y[alpha_k])
     return error_k
-
 
 def select_second_sample_j(svm, alpha_i, error_i):
     '''
@@ -101,7 +98,6 @@ def select_second_sample_j(svm, alpha_i, error_i):
 
     return alpha_j, error_j
 
-
 def update_error_tmp(svm, alpha_k):
     '''
     Desc: 重新计算误差值
@@ -110,7 +106,6 @@ def update_error_tmp(svm, alpha_k):
     '''
     error = cal_error(svm, alpha_k)
     svm.error_tmp[alpha_k] = [1, error]
-
 
 def choose_and_update(svm, alpha_i):
     '''
@@ -179,7 +174,6 @@ def choose_and_update(svm, alpha_i):
         return 1
     else:
         return 0
-
    
 def SVM_training(train_x, train_y, C, toler, max_iter, kernel_option = ('rbf', 0.431029)):
     '''
