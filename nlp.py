@@ -9,6 +9,8 @@ from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import docx
 import os
+from pyltp import SentenceSplitter
+from pyltp import Segmentor
 from pyltp import Postagger
 from pyltp import NamedEntityRecognizer as NER
 from pyltp import Parser
@@ -39,7 +41,6 @@ def get_doc(file_name):
     for paragraph in file.paragraphs:
         graph = paragraph.text.replace(' ', '')  # 除去段内空格
         document += graph + '\n'
-        # document += '\n'.join(graph)
     return document
 
 def doc2sent(doc):
@@ -48,15 +49,17 @@ def doc2sent(doc):
     Args: doc 文档字符串
     Returns: sents(str) 句子字符串
     '''
-    sentences = doc.split('\n')  # 切分成句子
-    sents = ''
+    
+    sentences = SentenceSplitter.split(doc)  # 切分成句子
+    sents = []
     for sent in sentences:
         if sent == '':
             continue
-        sents += sent + '\n'
+        # sents += sent + '\n'
+        sents.append(sent)
     return sents
 
-def sent2word(sentence, stopwords):
+def segment_jieba(sentence, stopwords):
     """
     Desc: 分词并除去停用词
     Args: sentence 待分词的文本内容
@@ -76,6 +79,20 @@ def sent2word(sentence, stopwords):
             word_list.append(word)
             # word_str += word + ' '  
     return word_list
+
+def segment_ltp(text, stopwords_file, cws_model_path):
+    '''
+    Desc: LTP分词
+    Args: text　待分词文本
+          stopwords_file 停用词
+          cws_model_path 分词模型
+    Returns: words 分词列表
+    '''
+    segmentor = Segmentor()
+    segmentor.load_with_lexicon(cws_model_path, stopwords_file) # 加载模型、自定义词典
+    words = segmentor.segment(text)
+    segmentor.release()
+    return words
 
 def pos_tag(word_list, pos_model_path):
     '''
@@ -171,6 +188,7 @@ def draw_cloud(mask, word_freq):
 text_file = '/home/share/业务约定书.docx'
 stopwords_file = '/home/kdd/stop_words.txt'
 LTP_DATA_DIR = '/home/kdd/ltp_data_v3.4.0/' # ltp模型路径
+cws_model_path = os.path.join(LTP_DATA_DIR, 'cws.model')  # 分词模型路径，模型名称为`cws.model`
 pos_model_path = os.path.join(LTP_DATA_DIR, 'pos.model')  # 词性标注模型路径，模型名称为`pos.model`
 ner_model_path = os.path.join(LTP_DATA_DIR, 'ner.model')  # 命名实体识别模型路径，模型名称为`pos.model`
 par_model_path = os.path.join(LTP_DATA_DIR, 'parser.model')  # 依存句法分析模型路径，模型名称为`parser.model`
@@ -190,32 +208,35 @@ if __name__ == '__main__':
     # print(doc)
     
     # 切分成句子
+    # sents = SentenceSplitter.split(doc)
     sents = doc2sent(doc)  
-    # print(sents)
+    # print(list(sents))
 
-    # 分词、统计词频
-    words = sent2word(sents, stopWords)
-    word_freq = dict(nltk.FreqDist(words))
-    # print(words)
-
-    # oft = fd.most_common(200)l
-    # word_freq = dict(oft)
-    # print(word_freq)
+    # # 分词、统计词频
+    # words = segment_jieba(sents, stopWords)
+    # word_freq = dict(nltk.FreqDist(words))
+    # words = segment_ltp(sents, stopwords_file, cws_model_path)
+    # print(list(words))
 
     # 绘制词云图
     # draw_cloud(mask, word_freq)
 
     # 词性标注
-    word_tag = pos_tag(words, pos_model_path) 
+    # word_tag = pos_tag(words, pos_model_path) 
     # print(word_tag)
 
     # 命名实体识别
-    ner_tag = recognize(word_tag, ner_model_path)
-    print(ner_tag)
+    # ner_tag = recognize(word_tag, ner_model_path)
+    # print(ner_tag)
 
     # 依存句法分析
-    arcs = parser(word_tag, par_model_path)
-    # print(" ".join("%d:%s" % (arc.head, arc.relation) for arc in arcs))
+    for sent in list(sents):
+        # print(sent)
+        word_list = segment_jieba(sent, stopWords)
+        print(word_list)
+        word_tag = pos_tag(word_list, pos_model_path)
+        arcs = parser(word_tag, par_model_path)
+        print(" ".join("%d:%s" % (arc.head, arc.relation) for arc in arcs))
 
     # 语义角色标注
     # labeller(words, pos_tag, arcs, srl_model_path)
