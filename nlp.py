@@ -15,6 +15,8 @@ from pyltp import Postagger
 from pyltp import NamedEntityRecognizer as NER
 from pyltp import Parser
 from pyltp import SementicRoleLabeller
+from snownlp import normal
+from snownlp.summary import textrank
 
 
 def get_text(file_name):
@@ -47,11 +49,12 @@ def doc2sent(doc):
     '''
     Desc: 除去文档中的空行并组成字符串
     Args: doc 文档字符串
-    Returns: sents(str) 句子字符串
+    Returns: sents(list) 句子列表
     '''
     
     sentences = SentenceSplitter.split(doc)  # 切分成句子
     sents = []
+    # sents = ''
     for sent in sentences:
         if sent == '':
             continue
@@ -67,9 +70,10 @@ def segment_jieba(sentence, stopwords):
     Returns: word_str(list) 分词结果
     """
 
-    jieba.load_userdict('/home/kdd/userdict.txt')
+    jieba.load_userdict('/home/kdd/nlp/userdict.txt')
     segResult = jieba.lcut(sentence)
     word_list = []
+    # word_list = ''
     for word in segResult:
         if word in stopwords:
             continue
@@ -77,7 +81,7 @@ def segment_jieba(sentence, stopwords):
             continue
         else:
             word_list.append(word)
-            # word_str += word + ' '  
+            # word_list += word + ' '  
     return word_list
 
 def segment_ltp(text, stopwords_file, cws_model_path):
@@ -93,6 +97,29 @@ def segment_ltp(text, stopwords_file, cws_model_path):
     words = segmentor.segment(text)
     segmentor.release()
     return words
+
+def draw_cloud(mask, word_freq):
+    '''
+    Desc: 根据词频绘制词云图
+    Args: mask 绘制图形形状
+          word_freq 词频字典
+    '''
+
+    word_cloud = WordCloud(font_path='/usr/share/fonts/windows/msyh.ttf', # 字体
+                           # background_color='white',   # 背景颜色
+                           width=1000,
+                           height=600,
+                           max_font_size=50,            # 字体大小
+                           min_font_size=10,
+                           mask=mask,                   # 背景图片
+                           max_words=400,
+                           scale = 1.8)
+    word_cloud = word_cloud.fit_words(word_freq)
+    word_cloud.to_file('wordcloud.png')
+    plt.figure('Word Cloud')
+    plt.imshow(word_cloud)
+    plt.axis('off')
+    plt.show()
 
 def pos_tag(word_list, pos_model_path):
     '''
@@ -160,34 +187,12 @@ def labeller(word_tag, arcs, srl_model_path):
     labeller.release()  
 
 
-def draw_cloud(mask, word_freq):
-    '''
-    Desc: 根据词频绘制词云图
-    Args: mask 绘制图形形状
-          word_freq 词频字典
-    '''
-
-    word_cloud = WordCloud(font_path='/usr/share/fonts/windows/msyh.ttf', # 字体
-                           # background_color='white',   #背景颜色
-                           width=1000,
-                           height=600,
-                           max_font_size=50,            #字体大小
-                           min_font_size=10,
-                           mask=mask,                   #背景图片
-                           max_words=400,
-                           scale = 1.8)
-    word_cloud = word_cloud.fit_words(word_freq)
-    word_cloud.to_file('wordcloud.png')
-    plt.figure('Word Cloud')
-    plt.imshow(word_cloud)
-    plt.axis('off')
-    plt.show()
-
-
 # 自定义文本位置
-text_file = '/home/share/业务约定书.docx'
-stopwords_file = '/home/kdd/stop_words.txt'
-LTP_DATA_DIR = '/home/kdd/ltp_data_v3.4.0/' # ltp模型路径
+text_file = '/home/kdd/nlp/业务约定书.docx'
+stopwords_file = '/home/kdd/nlp/stop_words.txt'
+
+# ltp模型路径
+LTP_DATA_DIR = '/home/kdd/nlp/ltp_data_v3.4.0/' 
 cws_model_path = os.path.join(LTP_DATA_DIR, 'cws.model')  # 分词模型路径，模型名称为`cws.model`
 pos_model_path = os.path.join(LTP_DATA_DIR, 'pos.model')  # 词性标注模型路径，模型名称为`pos.model`
 ner_model_path = os.path.join(LTP_DATA_DIR, 'ner.model')  # 命名实体识别模型路径，模型名称为`pos.model`
@@ -195,7 +200,7 @@ par_model_path = os.path.join(LTP_DATA_DIR, 'parser.model')  # 依存句法分�
 srl_model_path = os.path.join(LTP_DATA_DIR, 'srl')  # 语义角色标注模型目录路径，模型目录为`srl`
 
 # 自定义词云图背景
-mask = plt.imread('heart.jpeg')
+mask = plt.imread('duck.jpeg')
 
 
 
@@ -210,45 +215,60 @@ if __name__ == '__main__':
     # 切分成句子
     # sents = SentenceSplitter.split(doc)
     sents = doc2sent(doc)  
-    # print(list(sents))
+    # print(sents)
 
-    # # 分词、统计词频
-    # words = segment_jieba(sents, stopWords)
-    # word_freq = dict(nltk.FreqDist(words))
-    # words = segment_ltp(sents, stopwords_file, cws_model_path)
-    # print(list(words))
+    '''
+    # 分词、统计词频
+    words = segment_jieba(sents, stopWords) # 结巴分词
+    word_freq = dict(nltk.FreqDist(nltk.tokenize.word_tokenize(words))) 
+    # words = segment_ltp(sents, stopwords_file, cws_model_path) # LTP分词
+    print(word_freq)
 
     # 绘制词云图
-    # draw_cloud(mask, word_freq)
+    draw_cloud(mask, word_freq)
+
 
     # 词性标注
-    # word_tag = pos_tag(words, pos_model_path) 
-    # print(word_tag)
+    word_tag = pos_tag(words, pos_model_path) 
+    print(word_tag)
 
     # 命名实体识别
-    # ner_tag = recognize(word_tag, ner_model_path)
-    # print(ner_tag)
+    ner_tag = recognize(word_tag, ner_model_path)
+    print(ner_tag)
+    '''
 
+    '''
     # 依存句法分析
-    for sent in list(sents):
+    arcs_dict = {}
+    for sent in sents:
         # print(sent)
         word_list = segment_jieba(sent, stopWords)
-        print(word_list)
+        # print(word_list)
         word_tag = pos_tag(word_list, pos_model_path)
+        # print(word_tag)
         arcs = parser(word_tag, par_model_path)
-        print(" ".join("%d:%s" % (arc.head, arc.relation) for arc in arcs))
-
-    # 语义角色标注
-    # labeller(words, pos_tag, arcs, srl_model_path)
-
-    # 关键词抽取
-    # topic = analyse.extract_tags(words, topK=25)
-    # print('基于TF-IDF算法: \n', topic)
-    # topic = analyse.textrank(words, topK=25)
-    # print('\n基于TextRank算法: \n', topic)
+        arc_str = " ".join("%d:%s" % (arc.head, arc.relation) for arc in arcs)
+        arcs_dict[tuple(word_list)] = arc_str
+        labeller(word_tag, arcs, srl_model_path) # 语义角色标注
+    # print(arcs_dict)
+    '''
 
 
+    # 摘要提取
+    # sent_str = ' '.join(sents)
+    # print(sents)
+    word_list = []
+    for sent in sents:
+        words = segment_jieba(sent, stopWords)
+        word_list.append(words)
+    # print(word_list)
 
+    rank = textrank.TextRank(word_list)
+    rank.solve()
+    for index in rank.top_index(5):
+        print(sents[index])
 
-
-
+    # keyword_rank = textrank.KeywordTextRank(word_list)
+    # keyword_rank.solve()
+    # for w in keyword_rank.top_index(10):
+    #     print(w)
