@@ -67,22 +67,21 @@ def segment_jieba(sentence, stopwords):
     Desc: 分词并除去停用词
     Args: sentence 待分词的文本内容
           stopwords 停用词
-    Returns: word_str(list) 分词结果
+    Returns: words 分词结果
     """
 
     jieba.load_userdict('/home/kdd/nlp/userdict.txt')
+    sentence = ' '.join(sentence)
     segResult = jieba.lcut(sentence)
-    word_list = []
-    # word_list = ''
+    words = []
     for word in segResult:
         if word in stopwords:
             continue
         elif word.isspace():
             continue
         else:
-            word_list.append(word)
-            # word_list += word + ' '  
-    return word_list
+            words.append(word)
+    return words
 
 def segment_ltp(text, stopwords_file, cws_model_path):
     '''
@@ -105,7 +104,7 @@ def draw_cloud(mask, word_freq):
           word_freq 词频字典
     '''
 
-    word_cloud = WordCloud(font_path='/usr/share/fonts/windows/msyh.ttf', # 字体
+    word_cloud = WordCloud(font_path='/usr/share/fonts/windows/MSYH.ttf', # 字体
                            # background_color='white',   # 背景颜色
                            width=1000,
                            height=600,
@@ -116,7 +115,7 @@ def draw_cloud(mask, word_freq):
                            scale = 1.8)
     word_cloud = word_cloud.fit_words(word_freq)
     word_cloud.to_file('wordcloud.png')
-    plt.figure('Word Cloud')
+    plt.figure()
     plt.imshow(word_cloud)
     plt.axis('off')
     plt.show()
@@ -188,7 +187,7 @@ def labeller(word_tag, arcs, srl_model_path):
 
 
 # 自定义文本位置
-text_file = '/home/kdd/nlp/业务约定书.docx'
+text_file = '/home/kdd/nlp/评估报告.docx'
 stopwords_file = '/home/kdd/nlp/stop_words.txt'
 
 # ltp模型路径
@@ -210,19 +209,19 @@ if __name__ == '__main__':
     # text = get_text(file_name=text_file)
     doc = get_doc(text_file)
     stopWords = get_text(file_name=stopwords_file)
-    # print(doc)
+    print(doc)
     
     # 切分成句子
     # sents = SentenceSplitter.split(doc)
     sents = doc2sent(doc)  
     # print(sents)
 
-    '''
+    
     # 分词、统计词频
     words = segment_jieba(sents, stopWords) # 结巴分词
-    word_freq = dict(nltk.FreqDist(nltk.tokenize.word_tokenize(words))) 
+    word_freq = dict(nltk.FreqDist(nltk.tokenize.word_tokenize(' '.join(words)))) 
     # words = segment_ltp(sents, stopwords_file, cws_model_path) # LTP分词
-    print(word_freq)
+    # print(word_freq)
 
     # 绘制词云图
     draw_cloud(mask, word_freq)
@@ -235,9 +234,9 @@ if __name__ == '__main__':
     # 命名实体识别
     ner_tag = recognize(word_tag, ner_model_path)
     print(ner_tag)
-    '''
+    
 
-    '''
+    
     # 依存句法分析
     arcs_dict = {}
     for sent in sents:
@@ -250,10 +249,10 @@ if __name__ == '__main__':
         arc_str = " ".join("%d:%s" % (arc.head, arc.relation) for arc in arcs)
         arcs_dict[tuple(word_list)] = arc_str
         labeller(word_tag, arcs, srl_model_path) # 语义角色标注
-    # print(arcs_dict)
-    '''
+    print(arcs_dict)
+    
 
-
+    
     # 摘要提取
     # sent_str = ' '.join(sents)
     # print(sents)
@@ -267,6 +266,7 @@ if __name__ == '__main__':
     rank.solve()
     for index in rank.top_index(5):
         print(sents[index])
+    
 
     # keyword_rank = textrank.KeywordTextRank(word_list)
     # keyword_rank.solve()
