@@ -32,7 +32,6 @@ def get_doc(file_name):
     file = docx.Document(file_name)
     graphs = [graph.text.replace(' ', '') for graph in file.paragraphs]
     document = '\n'.join(graphs)
-
     return document
 
 def doc2sent(doc):
@@ -100,14 +99,13 @@ if __name__ == '__main__':
     # print(sents)
 
     # 摘要提取
-    word_list = []
-    for sent in sents:
-        words = segment_jieba(sent, stopWords)
-        word_list.append(words)
+    word_list = [segment_jieba(sent, stopWords) for sent in sents]
     # print(word_list)
 
     rank = textrank.TextRank(word_list)
     rank.solve()
+    # key_sents = [sents[index] for index in rank.top_index(5)]
+    # print(key_sents)
     for index in rank.top_index(5):
         print(sents[index])
     

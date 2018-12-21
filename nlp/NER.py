@@ -13,6 +13,7 @@ from pyltp import NamedEntityRecognizer as NER
 
 
 
+
 def get_text(file_name):
     '''
     Desc: 读取文本内容
@@ -35,7 +36,6 @@ def get_doc(file_name):
     file = docx.Document(file_name)
     graphs = [graph.text.replace(' ', '') for graph in file.paragraphs]
     document = '\n'.join(graphs)
-
     return document
 
 def doc2sent(doc):
@@ -47,6 +47,12 @@ def doc2sent(doc):
     
     sentences = SentenceSplitter.split(doc)  # 切分成句子
     sents = [sent for sent in sentences if sent != '']
+    # sents = []
+    # for sent in sentences:
+
+    #     if sent != '':
+    #         sents.append(sent)
+
     return sents
 
 def segment_jieba(sentence, stopwords):
@@ -58,7 +64,7 @@ def segment_jieba(sentence, stopwords):
     '''
 
     jieba.load_userdict('/home/kdd/nlp/userdict.txt')
-    sentence = ' '.join(sentence)
+    # sentence = ' '.join(sentence)
     segResult = jieba.lcut(sentence)
     words = []
     for word in segResult:
@@ -112,7 +118,7 @@ def recognize(word_tag, ner_model_path):
     recog.load(ner_model_path)
     ner_tag = recog.recognize(list(word_tag.keys()), list(word_tag.values()))
     recog.release()
-    ner_tag = dict(zip(list(word_tag.keys()), list(ner_tag)))
+    # ner_tag = dict(zip(list(word_tag.keys()), list(ner_tag)))
     return ner_tag
 
 
@@ -140,21 +146,33 @@ if __name__ == '__main__':
     sents = doc2sent(doc)  
     # print(sents)
 
-    # 分词、统计词频
-    words = segment_jieba(sents, stopWords) # 结巴分词
-    word_freq = dict(nltk.FreqDist(nltk.tokenize.word_tokenize(' '.join(words)))) 
-    # words = segment_ltp(sents, stopwords_file, cws_model_path) # LTP分词
+    # 信息抽取
+    for sent in sents:
+        print(sent)
+        words = segment_jieba(sent, stopWords)
+        # print(words)
+        word_tag = pos_tag(words, pos_model_path)
+        # print(word_tag)
+        ner_tag = recognize(word_tag, ner_model_path)
+        # print(list(ner_tag))
+        # NE_list = set()
+        # for i in range(len(ner_tag)):
+        #     if ner_tag[i][0] == 'S' or ner_tag[i][0] == 'B':
+        #         j = i
+        #         if ner_tag[j][0] == 'B':
+        #             while ner_tag[j][0] != 'E':
+        #                 j += 1
+        #                 print('='*30)
+        #             e = ''.join(words[i:j+1])
+        #             NE_list.add(e)
+        #         else:
+        #             e = words[j]
+        #             NE_list.add(e)
+        # print(NE_list)
+        # arcs = parser(word_tag, par_model_path)
+        # arc_str = " ".join("%d:%s" % (arc.head, arc.relation) for arc in arcs)
+        # arcs_dict[tuple(words)] = arc_str
+        # labeller(word_tag, arcs, srl_model_path) # 语义角色标注
+    # print(arcs_dict)
 
-
-    # 绘制词云图
-    # draw_cloud(mask, word_freq)
-
-
-    # # 词性标注
-    word_tag = pos_tag(words, pos_model_path) 
-    # print(word_tag)
-
-    # # 命名实体识别
-    ner_tag = recognize(word_tag, ner_model_path)
-    print(ner_tag)
 

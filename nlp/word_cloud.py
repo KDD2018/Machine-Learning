@@ -34,7 +34,6 @@ def get_doc(file_name):
     file = docx.Document(file_name)
     graphs = [graph.text.replace(' ', '') for graph in file.paragraphs]
     document = '\n'.join(graphs)
-
     return document
 
 def doc2sent(doc):
@@ -132,7 +131,7 @@ if __name__ == '__main__':
     words = segment_jieba(sents, stopWords) # 结巴分词
     word_freq = dict(nltk.FreqDist(nltk.tokenize.word_tokenize(' '.join(words)))) 
     # words = segment_ltp(sents, stopwords_file, cws_model_path) # LTP分词
-    # print(word_freq)
+    # print(words)
 
     # 绘制词云图
     draw_cloud(mask, word_freq)
