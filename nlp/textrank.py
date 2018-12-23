@@ -41,6 +41,7 @@ def doc2sent(doc):
     Returns: sents(list) 句子列表
     '''
     
+    doc = re.sub('\\(.*?\\)|\\【.*?】', '', doc)
     sentences = SentenceSplitter.split(doc)  # 切分成句子
     sents = [sent for sent in sentences if sent != '']
     return sents

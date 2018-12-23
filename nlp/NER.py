@@ -6,6 +6,7 @@ import nltk
 import matplotlib.pyplot as plt
 import docx
 import os
+import re
 from pyltp import SentenceSplitter
 from pyltp import Segmentor
 from pyltp import Postagger
@@ -45,14 +46,9 @@ def doc2sent(doc):
     Returns: sents(list) 句子列表
     '''
     
+    doc = re.sub('\\(.*?\\)|\\【.*?】', '', doc)
     sentences = SentenceSplitter.split(doc)  # 切分成句子
     sents = [sent for sent in sentences if sent != '']
-    # sents = []
-    # for sent in sentences:
-
-    #     if sent != '':
-    #         sents.append(sent)
-
     return sents
 
 def segment_jieba(sentence, stopwords):
@@ -148,11 +144,11 @@ if __name__ == '__main__':
 
     # 信息抽取
     for sent in sents:
-        print(sent)
+        # print(sent)
         words = segment_jieba(sent, stopWords)
         # print(words)
         word_tag = pos_tag(words, pos_model_path)
-        # print(word_tag)
+        print(word_tag)
         ner_tag = recognize(word_tag, ner_model_path)
         # print(list(ner_tag))
         # NE_list = set()
