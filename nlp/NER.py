@@ -114,7 +114,7 @@ def recognize(word_tag, ner_model_path):
     recog.load(ner_model_path)
     ner_tag = recog.recognize(list(word_tag.keys()), list(word_tag.values()))
     recog.release()
-    # ner_tag = dict(zip(list(word_tag.keys()), list(ner_tag)))
+    ner_tag = dict(zip(list(word_tag.keys()), list(ner_tag)))
     return ner_tag
 
 
@@ -142,33 +142,21 @@ if __name__ == '__main__':
     sents = doc2sent(doc)  
     # print(sents)
 
-    # 信息抽取
+    # 命名实体识别
     for sent in sents:
         # print(sent)
         words = segment_jieba(sent, stopWords)
         # print(words)
         word_tag = pos_tag(words, pos_model_path)
-        print(word_tag)
+        # print(word_tag)
         ner_tag = recognize(word_tag, ner_model_path)
-        # print(list(ner_tag))
-        # NE_list = set()
-        # for i in range(len(ner_tag)):
-        #     if ner_tag[i][0] == 'S' or ner_tag[i][0] == 'B':
-        #         j = i
-        #         if ner_tag[j][0] == 'B':
-        #             while ner_tag[j][0] != 'E':
-        #                 j += 1
-        #                 print('='*30)
-        #             e = ''.join(words[i:j+1])
-        #             NE_list.add(e)
-        #         else:
-        #             e = words[j]
-        #             NE_list.add(e)
-        # print(NE_list)
-        # arcs = parser(word_tag, par_model_path)
-        # arc_str = " ".join("%d:%s" % (arc.head, arc.relation) for arc in arcs)
-        # arcs_dict[tuple(words)] = arc_str
-        # labeller(word_tag, arcs, srl_model_path) # 语义角色标注
-    # print(arcs_dict)
+        print(ner_tag)
+        
+
+
+
+
+
+
 
 

@@ -168,7 +168,7 @@ def bp_train(feature, label, n_hidden, maxCycle, alpha, n_output):
         i += 1
     return w0, w1, b0, b1
 
-def load_data():
+def load_data(filename):
 	'''
 	Desc: 导入数据
 	Args: 
