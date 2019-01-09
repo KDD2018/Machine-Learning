@@ -214,101 +214,149 @@ def is_good(e, NE_list, sentence):
             return True
     return False
 
-def extraction_start_from_xml(in_file_name):
+def fact_triple_extract(sentence, out_file, corpus_file):
     """
-    提取文本中的text标签的内容，进行实体关系三元组抽取
+    对于给定的句子进行事实三元组抽取
+    Args:
+        sentence: 要处理的语句
     """
-    docs_root = etree.parse(in_file_name).getroot()
-    out_file = open(in_file_name+'.triple.txt', 'w')
-    out_docs_root = etree.Element("docs")
-    sentence_count = 0
-    find_flag = False
-    for each_doc in docs_root:  # 遍历每个doc
-        out_doc_element = etree.SubElement(out_docs_root, "doc")
-        out_doc_element.attrib["name"] = each_doc.attrib["name"]
-        out_doc_element.attrib["url"] = each_doc.attrib["url"]
-        out_doc_element.attrib["id"] = each_doc.attrib["id"]
-        out_doc_element.attrib["baike_id"] = each_doc.attrib["baike_id"]
-        out_doc_element.attrib["time"] = each_doc.attrib["time"]
-        for each_par in each_doc:
-            out_par_element = etree.SubElement(out_doc_element, "par")
-            for element in each_par:
-                if element.tag == "text":  
-                    text = element.text.encode('utf-8')
-                    text = text.replace("。","。\n").replace("！","！\n").replace("？","？\n")
-                    sentences = text.split("\n")
-                    for sentence in sentences:
-                        sentence = sentence.strip()
-                        if sentence == '':
-                            continue
-                        sentence_count += 1
-                        if sentence_count%1000 == 0:
-                            print(sentence_count,"sentences done.")
-                        u_sentence = sentence.decode('utf-8')
-                        out_sentence_element = etree.SubElement(out_par_element, "sentence")
-                        out_s_text_element = etree.SubElement(out_sentence_element, "s_text")
-                        out_s_text_element.text = u_sentence
-                        try:
-                            find_flag = fact_triple_extract(sentence, out_file, out_sentence_element)
-                            if find_flag == False:
-                                out_sentence_element.xpath("..")[0].remove(out_sentence_element)
-                            out_file.flush()
-                        except:
-                            pass
-            if find_flag == False:
-                out_par_element.xpath("..")[0].remove(out_par_element)
-        if find_flag == False:
-            out_doc_element.xpath("..")[0].remove(out_doc_element)
-    tree = etree.ElementTree(out_docs_root)
-    tree.write(in_file_name+".triple.xml", pretty_print=True, xml_declaration=True, encoding='utf-8')
+    # print sentence
+    words = segmentor.segment(sentence)
+    # print "\t".join(words)
+    postags = postagger.postag(words)
+    netags = recognizer.recognize(words, postags)
+    arcs = parser.parse(words, postags)
+    # print "\t".join("%d:%s" % (arc.head, arc.relation) for arc in arcs)
 
-def extraction_start_from_xml(in_file_name):
-    """
-    提取文本中的text标签的内容，进行实体关系三元组抽取
-    """
-    docs_root = etree.parse(in_file_name).getroot()
-    out_file = open(in_file_name+'.triple.txt', 'w')
-    out_docs_root = etree.Element("docs")
-    sentence_count = 0
-    find_flag = False
-    for each_doc in docs_root:  # 遍历每个doc
-        out_doc_element = etree.SubElement(out_docs_root, "doc")
-        out_doc_element.attrib["name"] = each_doc.attrib["name"]
-        out_doc_element.attrib["url"] = each_doc.attrib["url"]
-        out_doc_element.attrib["id"] = each_doc.attrib["id"]
-        out_doc_element.attrib["baike_id"] = each_doc.attrib["baike_id"]
-        out_doc_element.attrib["time"] = each_doc.attrib["time"]
-        for each_par in each_doc:
-            out_par_element = etree.SubElement(out_doc_element, "par")
-            for element in each_par:
-                if element.tag == "text":  
-                    text = element.text.encode('utf-8')
-                    text = text.replace("。","。\n").replace("！","！\n").replace("？","？\n")
-                    sentences = text.split("\n")
-                    for sentence in sentences:
-                        sentence = sentence.strip()
-                        if sentence == '':
-                            continue
-                        sentence_count += 1
-                        if sentence_count%1000 == 0:
-                            print(sentence_count,"sentences done.")
-                        u_sentence = sentence.decode('utf-8')
-                        out_sentence_element = etree.SubElement(out_par_element, "sentence")
-                        out_s_text_element = etree.SubElement(out_sentence_element, "s_text")
-                        out_s_text_element.text = u_sentence
-                        try:
-                            find_flag = fact_triple_extract(sentence, out_file, out_sentence_element)
-                            if find_flag == False:
-                                out_sentence_element.xpath("..")[0].remove(out_sentence_element)
-                            out_file.flush()
-                        except:
-                            pass
-            if find_flag == False:
-                out_par_element.xpath("..")[0].remove(out_par_element)
-        if find_flag == False:
-            out_doc_element.xpath("..")[0].remove(out_doc_element)
-    tree = etree.ElementTree(out_docs_root)
-    tree.write(in_file_name+".triple.xml", pretty_print=True, xml_declaration=True, encoding='utf-8')
+    NE_list = set()
+    for i in range(len(netags)):
+        if netags[i][0] == 'S' or netags[i][0] == 'B':
+            j = i
+            if netags[j][0] == 'B':
+                while netags[j][0] != 'E':
+                    j += 1
+                e = ''.join(words[i:j + 1])
+                NE_list.add(e)
+            else:
+                e = words[j]
+                NE_list.add(e)
+
+    corpus_flag = False
+    child_dict_list = build_parse_child_dict(words, postags, arcs)
+    for index in range(len(postags)):
+        # 抽取以谓词为中心的事实三元组
+        if postags[index] == 'v':
+            child_dict = child_dict_list[index]
+            # 主谓宾
+            if child_dict.has_key('SBV') and child_dict.has_key('VOB'):
+                e1 = complete_e(words, postags, child_dict_list, child_dict['SBV'][0])
+                r = words[index]
+                e2 = complete_e(words, postags, child_dict_list, child_dict['VOB'][0])
+                # if e1 in NE_list or e2 in NE_list:
+                if is_good(e1, NE_list, sentence) and is_good(e2, NE_list, sentence):
+                    out_file.write("主语谓语宾语关系\t(%s, %s, %s)\n" % (e1, r, e2))
+                    out_file.flush()
+                    if not corpus_flag:
+                        corpus_file.write(sentence)
+                        corpus_flag = True
+                    e1_start = (sentence.decode('utf-8')).index((e1.decode('utf-8')))
+                    e1_end = e1_start + len(e1.decode('utf-8')) - 1
+                    r_start = (sentence.decode('utf-8')).index((r.decode('utf-8')))
+                    r_end = r_start + len(r.decode('utf-8')) - 1
+                    e2_start = (sentence.decode('utf-8')).index((e2.decode('utf-8')))
+                    e2_end = e2_start + len(e2.decode('utf-8')) - 1
+                    corpus_file.write("$$3==%s/%d-%d==%s/%d-%d==%s/%d-%d" % (
+                    e1, e1_start, e1_end, r, r_start, r_end, e2, e2_start, e2_end))
+                    corpus_file.flush()
+            # 定语后置，动宾关系
+            if arcs[index].relation == 'ATT':
+                if child_dict.has_key('VOB'):
+                    e1 = complete_e(words, postags, child_dict_list, arcs[index].head - 1)
+                    r = words[index]
+                    e2 = complete_e(words, postags, child_dict_list, child_dict['VOB'][0])
+                    temp_string = r + e2
+                    if temp_string == e1[:len(temp_string)]:
+                        e1 = e1[len(temp_string):]
+                    # if temp_string not in e1 and (e1 in NE_list or e2 in NE_list):
+                    if temp_string not in e1 and is_good(e1, NE_list, sentence) and is_good(e2, NE_list, sentence):
+                        out_file.write("定语后置动宾关系\t(%s, %s, %s)\n" % (e1, r, e2))
+                        out_file.flush()
+                        if not corpus_flag:
+                            corpus_file.write(sentence)
+                            corpus_flag = True
+                        e1_start = (sentence.decode('utf-8')).index((e1.decode('utf-8')))
+                        e1_end = e1_start + len(e1.decode('utf-8')) - 1
+                        r_start = (sentence.decode('utf-8')).index((r.decode('utf-8')))
+                        r_end = r_start + len(r.decode('utf-8')) - 1
+                        e2_start = (sentence.decode('utf-8')).index((e2.decode('utf-8')))
+                        e2_end = e2_start + len(e2.decode('utf-8')) - 1
+                        corpus_file.write("$$3==%s/%d-%d==%s/%d-%d==%s/%d-%d" % (
+                        e1, e1_start, e1_end, r, r_start, r_end, e2, e2_start, e2_end))
+                        corpus_file.flush()
+            # 含有介宾关系的主谓动补关系
+            if child_dict.has_key('SBV') and child_dict.has_key('CMP'):
+                # e1 = words[child_dict['SBV'][0]]
+                e1 = complete_e(words, postags, child_dict_list, child_dict['SBV'][0])
+                cmp_index = child_dict['CMP'][0]
+                r = words[index] + words[cmp_index]
+                if child_dict_list[cmp_index].has_key('POB'):
+                    e2 = complete_e(words, postags, child_dict_list, child_dict_list[cmp_index]['POB'][0])
+                    # if e1 in NE_list or e2 in NE_list:
+                    if is_good(e1, NE_list, sentence) and is_good(e2, NE_list, sentence):
+                        out_file.write("介宾关系主谓动补\t(%s, %s, %s)\n" % (e1, r, e2))
+                        out_file.flush()
+                        if not corpus_flag:
+                            corpus_file.write(sentence)
+                            corpus_flag = True
+                        e1_start = (sentence.decode('utf-8')).index((e1.decode('utf-8')))
+                        e1_end = e1_start + len(e1.decode('utf-8')) - 1
+                        r_start = (sentence.decode('utf-8')).index((r.decode('utf-8')))
+                        r_end = r_start + len(r.decode('utf-8')) - 1
+                        e2_start = (sentence.decode('utf-8')).index((e2.decode('utf-8')))
+                        e2_end = e2_start + len(e2.decode('utf-8')) - 1
+                        corpus_file.write("$$3==%s/%d-%d==%s/%d-%d==%s/%d-%d" % (
+                        e1, e1_start, e1_end, r, r_start, r_end, e2, e2_start, e2_end))
+                        corpus_file.flush()
+        # 尝试抽取命名实体有关的三元组
+        if netags[index][0] == 'S' or netags[index][0] == 'B':
+            ni = index
+            if netags[ni][0] == 'B':
+                while netags[ni][0] != 'E':
+                    ni += 1
+                e1 = ''.join(words[index:ni + 1])
+            else:
+                e1 = words[ni]
+            if arcs[ni].relation == 'ATT' and postags[arcs[ni].head - 1] == 'n' and netags[arcs[ni].head - 1] == 'O':
+                r = complete_e(words, postags, child_dict_list, arcs[ni].head - 1)
+                if e1 in r:
+                    r = r[(r.index(e1) + len(e1)):]
+                if arcs[arcs[ni].head - 1].relation == 'ATT' and netags[arcs[arcs[ni].head - 1].head - 1] != 'O':
+                    e2 = complete_e(words, postags, child_dict_list, arcs[arcs[ni].head - 1].head - 1)
+                    mi = arcs[arcs[ni].head - 1].head - 1
+                    li = mi
+                    if netags[mi][0] == 'B':
+                        while netags[mi][0] != 'E':
+                            mi += 1
+                        e = ''.join(words[li + 1:mi + 1])
+                        e2 += e
+                    if r in e2:
+                        e2 = e2[(e2.index(r) + len(r)):]
+                    if is_good(e1, NE_list, sentence) and is_good(e2, NE_list, sentence):
+                        out_file.write("人名//地名//机构\t(%s, %s, %s)\n" % (e1, r, e2))
+                        out_file.flush()
+                        if not corpus_flag:
+                            corpus_file.write(sentence)
+                            corpus_flag = True
+                        e1_start = (sentence.decode('utf-8')).index((e1.decode('utf-8')))
+                        e1_end = e1_start + len(e1.decode('utf-8')) - 1
+                        r_start = (sentence.decode('utf-8')).index((r.decode('utf-8')))
+                        r_end = r_start + len(r.decode('utf-8')) - 1
+                        e2_start = (sentence.decode('utf-8')).index((e2.decode('utf-8')))
+                        e2_end = e2_start + len(e2.decode('utf-8')) - 1
+                        corpus_file.write("$$3==%s/%d-%d==%s/%d-%d==%s/%d-%d" % (
+                        e1, e1_start, e1_end, r, r_start, r_end, e2, e2_start, e2_end))
+                        corpus_file.flush()
+    return corpus_flag
 
 
 # 自定义文本位置
@@ -351,22 +399,9 @@ if __name__ == '__main__':
         # labeller(word_tag, arcs, srl_model_path) # 语义角色标注
         child_dict_list = build_parse_child_dict(words, word_tag.values(), arcs)
         print(child_dict_list)
+    # print(arcs_dict)
 
 
-        # NE_list = set()
-        # for i in range(len(ner_tag)):
-        #     if ner_tag[i][0] == 'S' or ner_tag[i][0] == 'B':
-        #         j = i
-        #         if ner_tag[j][0] == 'B':
-        #             while ner_tag[j][0] != 'E':
-        #                 j += 1
-        #                 print('='*30)
-        #             e = ''.join(words[i:j+1])
-        #             NE_list.add(e)
-        #         else:
-        #             e = words[j]
-        #             NE_list.add(e)
-        # print(NE_list)
 
 
 
