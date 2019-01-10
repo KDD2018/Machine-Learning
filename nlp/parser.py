@@ -2,14 +2,10 @@
 # -*- coding: utf-8 -*-
 
 import jieba
-from jieba import posseg as psg
-from jieba import analyse
-import nltk
-from wordcloud import WordCloud
-import matplotlib.pyplot as plt
 import docx
 import os
 import re
+import pkuseg
 from pyltp import SentenceSplitter
 from pyltp import Segmentor
 from pyltp import Postagger
@@ -89,6 +85,29 @@ def segment_ltp(text, stopwords_file, cws_model_path):
     segmentor.load_with_lexicon(cws_model_path, stopwords_file) # 加载模型、自定义词典
     words = segmentor.segment(text)
     segmentor.release()
+    return words
+
+def segment_pku(sentence, stopwords):
+    '''
+    Desc: pkuseg分词
+    Args: sentence 待分词文本
+          stopwords 停用词
+          model_name 分词模型
+    Returns: words 分词列表
+    '''
+
+    user_dict = ['资产评估', '业务约定书', '北京四方清能电气电子有限公司', '凯晨世贸中心', '委托方', '受托方', '中联资产评估集团有限公司', '北京银行',
+                 '中国资产评估协会', '北京四方继保自动化股份有限公司', 'XXXX有限公司', '复兴门内大街28号', '约定书', '专家国际公馆', '后屯路26号']
+    seg = pkuseg.pkuseg(model_name='ctb8', user_dict=user_dict)
+    segResult = seg.cut(sentence)
+    words = []
+    for word in segResult:
+        if word in stopwords:
+            continue
+        elif word.isspace():
+            continue
+        else:
+            words.append(word)
     return words
 
 def pos_tag(words, pos_model_path):
@@ -363,7 +382,7 @@ def fact_triple_extract(sentence, out_file, corpus_file):
 text_file = '/home/kdd/nlp/业务约定书.docx'
 stopwords_file = '/home/kdd/nlp/stop_words.txt'
 
-# ltp模型路径
+# ltp模型路径s
 LTP_DATA_DIR = '/home/kdd/nlp/ltp_data_v3.4.0/' 
 cws_model_path = os.path.join(LTP_DATA_DIR, 'cws.model')  # 分词模型路径，模型名称为`cws.model`
 pos_model_path = os.path.join(LTP_DATA_DIR, 'pos.model')  # 词性标注模型路径，模型名称为`pos.model`
@@ -389,6 +408,7 @@ if __name__ == '__main__':
     for sent in sents:
         # print(sent)
         words = segment_jieba(sent, stopWords)
+        # words = segment_pku(sent, stopWords)
         # print(words)
         word_tag = pos_tag(words, pos_model_path)
         # print(word_tag)
@@ -398,7 +418,15 @@ if __name__ == '__main__':
         arcs_dict[tuple(words)] = arc_str
         # labeller(word_tag, arcs, srl_model_path) # 语义角色标注
         child_dict_list = build_parse_child_dict(words, word_tag.values(), arcs)
-        print(child_dict_list)
+    # print(arcs_dict)
+    #     for k, v in word_tag:
+    #         # 抽取以谓词为中心的事实三元组
+    #         if v == 'v':
+    #             child_dict = child_dict_list[k]
+    #             # 主谓宾
+    #             if 'SBV' in child_dict:
+    #                 e1 = complete_e(words, word_tag.values(), child_dict_list, child_dict['SBV'][0])
+    #                 print(e1)
     # print(arcs_dict)
 
 
