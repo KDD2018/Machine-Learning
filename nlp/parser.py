@@ -187,8 +187,7 @@ def build_parse_child_dict(words, postags, arcs):
                 else:
                     child_dict[arcs[arc_index].relation] = []
                     child_dict[arcs[arc_index].relation].append(arc_index)
-        #if child_dict.has_key('SBV'):
-        #    print words[index],child_dict['SBV']
+
         child_dict_list.append(child_dict)
     return child_dict_list
 
@@ -198,15 +197,15 @@ def complete_e(words, postags, child_dict_list, word_index):
     """
     child_dict = child_dict_list[word_index]
     prefix = ''
-    if child_dict.has_key('ATT'):
+    if 'ATT' in child_dict:
         for i in range(len(child_dict['ATT'])):
             prefix += complete_e(words, postags, child_dict_list, child_dict['ATT'][i])
     
     postfix = ''
     if postags[word_index] == 'v':
-        if child_dict.has_key('VOB'):
+        if 'VOB' in child_dict:
             postfix += complete_e(words, postags, child_dict_list, child_dict['VOB'][0])
-        if child_dict.has_key('SBV'):
+        if 'SBV' in child_dict:
             prefix = complete_e(words, postags, child_dict_list, child_dict['SBV'][0]) + prefix
 
     return prefix + words[word_index] + postfix
@@ -267,7 +266,7 @@ def fact_triple_extract(sentence, out_file, corpus_file):
         if postags[index] == 'v':
             child_dict = child_dict_list[index]
             # 主谓宾
-            if child_dict.has_key('SBV') and child_dict.has_key('VOB'):
+            if 'SBV' in child_dict and 'VOB' in child_dict:
                 e1 = complete_e(words, postags, child_dict_list, child_dict['SBV'][0])
                 r = words[index]
                 e2 = complete_e(words, postags, child_dict_list, child_dict['VOB'][0])
@@ -427,7 +426,7 @@ if __name__ == '__main__':
     #             if 'SBV' in child_dict:
     #                 e1 = complete_e(words, word_tag.values(), child_dict_list, child_dict['SBV'][0])
     #                 print(e1)
-    # print(arcs_dict)
+        print(child_dict_list)
 
 
 
