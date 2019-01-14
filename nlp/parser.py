@@ -122,10 +122,10 @@ def pos_tag(words, pos_model_path):
     postagger.load(pos_model_path)
     postags = postagger.postag(words)
     postagger.release()
-    word_tag = dict(zip(words, list(postags)))
-    return word_tag
+    # word_tag = dict(zip(words, list(postags)))
+    return postags
 
-def recognize(word_tag, ner_model_path):
+def recognize(words, postags, ner_model_path):
     '''
     Desc: 命名实体识别
     Args: word_tag(dict) 词性词典
@@ -135,12 +135,12 @@ def recognize(word_tag, ner_model_path):
     
     recog = NER()
     recog.load(ner_model_path)
-    ner_tag = recog.recognize(list(word_tag.keys()), list(word_tag.values()))
+    ner_tag = recog.recognize(words, postags)
     recog.release()
     # ner_tag = dict(zip(list(word_tag.keys()), list(ner_tag)))
     return ner_tag
 
-def parser(word_tag, par_model_path):
+def parser(words, postags, par_model_path):
     '''
     Desc: 依存句法分析
     Args: word_tag(dict) 词性词典
@@ -150,7 +150,7 @@ def parser(word_tag, par_model_path):
 
     parser = Parser()
     parser.load(par_model_path)
-    arcs = parser.parse(list(word_tag.keys()), list(word_tag.values()))
+    arcs = parser.parse(words, postags)
     parser.release()
     return arcs
 
@@ -217,8 +217,8 @@ def is_good(e, NE_list, sentence):
     if e not in sentence:
         return False
 
-    words_e = segmentor.segment(e)
-    postags_e = postagger.postag(words_e)
+    words_e = segment_jieba(e, stopWords)
+    postags_e = pos_tag(words_e, pos_model_path)
     if e in NE_list:
         return True
     else:
@@ -238,13 +238,14 @@ def fact_triple_extract(sentence, out_file, corpus_file):
     Args:
         sentence: 要处理的语句
     """
-    # print sentence
-    words = segmentor.segment(sentence)
+
+    words = segment_jieba(sentence, stopWords)
     # print "\t".join(words)
-    postags = postagger.postag(words)
-    netags = recognizer.recognize(words, postags)
-    arcs = parser.parse(words, postags)
+    postags = pos_tag(words, pos_model_path)
+    netags = recognize(words, postags, ner_model_path)
+    arcs = parser(words, postags, par_model_path)
     # print "\t".join("%d:%s" % (arc.head, arc.relation) for arc in arcs)
+
 
     NE_list = set()
     for i in range(len(netags)):
@@ -288,7 +289,7 @@ def fact_triple_extract(sentence, out_file, corpus_file):
                     corpus_file.flush()
             # 定语后置，动宾关系
             if arcs[index].relation == 'ATT':
-                if child_dict.has_key('VOB'):
+                if 'VOB' in child_dict:
                     e1 = complete_e(words, postags, child_dict_list, arcs[index].head - 1)
                     r = words[index]
                     e2 = complete_e(words, postags, child_dict_list, child_dict['VOB'][0])
@@ -312,7 +313,7 @@ def fact_triple_extract(sentence, out_file, corpus_file):
                         e1, e1_start, e1_end, r, r_start, r_end, e2, e2_start, e2_end))
                         corpus_file.flush()
             # 含有介宾关系的主谓动补关系
-            if child_dict.has_key('SBV') and child_dict.has_key('CMP'):
+            if 'SBV' in child_dict and 'CMP' in child_dict:
                 # e1 = words[child_dict['SBV'][0]]
                 e1 = complete_e(words, postags, child_dict_list, child_dict['SBV'][0])
                 cmp_index = child_dict['CMP'][0]
@@ -376,10 +377,44 @@ def fact_triple_extract(sentence, out_file, corpus_file):
                         corpus_file.flush()
     return corpus_flag
 
+def extact_start(sents, out_file_path, corpus_file_path):
+    '''
+    Desc: 抽取总控开关
+    Args: out_file 输出结果文件 
+          corpus_file 语料文件
+     
+    '''
+    out_file = open(out_file_path)
+    corpus_file = open(corpus_file_path)
+
+    info_dict = dict()
+    info_dict['title'] = sents[0]
+    for sent in sents:
+        # print(sent)
+        if '：' in sent and sent.split('：')[1] != '':
+            # info_dict = dict()
+            info_dict[sent.split('：')[0]] = sent.split('：')[1]
+        else:
+            try:
+                flag = fact_triple_extract(sent, out_file, corpus_file)
+                out_file.flush()
+                if flag:
+                    corpus_file.write('\n')
+                    corpus_file.flush()
+            except:
+                pass
+    out_file.close()
+    corpus_file.close()
+
+    # print(info_dict)
+
+
 
 # 自定义文本位置
 text_file = '/home/kdd/nlp/业务约定书.docx'
 stopwords_file = '/home/kdd/nlp/stop_words.txt'
+out_file_path = '/home/kdd/nlp/out_file.txt'
+corpus_file_path = '/home/kdd/nlp/corpus.txt'
 
 # ltp模型路径s
 LTP_DATA_DIR = '/home/kdd/nlp/ltp_data_v3.4.0/' 
@@ -399,34 +434,37 @@ if __name__ == '__main__':
     # print(doc)
     
     # 切分成句子
-    sents = doc2sent(doc)  
+    sents = doc2sent(doc)
     # print(sents)
 
     # 依存句法分析
-    arcs_dict = {}
+    fact_triple_extract(sents, out_file_path, corpus_file_path)
+    '''
+    arcs_dict = dict()
+    info_dict = dict()
+    info_dict['title'] = sents[0]
     for sent in sents:
         # print(sent)
-        words = segment_jieba(sent, stopWords)
-        # words = segment_pku(sent, stopWords)
-        # print(words)
-        word_tag = pos_tag(words, pos_model_path)
-        # print(word_tag)
-        ner_tag = recognize(word_tag, ner_model_path)
-        arcs = parser(word_tag, par_model_path)
-        arc_str = " ".join("%d:%s" % (arc.head, arc.relation) for arc in arcs)
-        arcs_dict[tuple(words)] = arc_str
-        # labeller(word_tag, arcs, srl_model_path) # 语义角色标注
-        child_dict_list = build_parse_child_dict(words, word_tag.values(), arcs)
-    # print(arcs_dict)
-    #     for k, v in word_tag:
-    #         # 抽取以谓词为中心的事实三元组
-    #         if v == 'v':
-    #             child_dict = child_dict_list[k]
-    #             # 主谓宾
-    #             if 'SBV' in child_dict:
-    #                 e1 = complete_e(words, word_tag.values(), child_dict_list, child_dict['SBV'][0])
-    #                 print(e1)
-        print(child_dict_list)
+        if '：' in sent and sent.split('：')[1] != '':
+            # info_dict = dict()
+            info_dict[sent.split('：')[0]] = sent.split('：')[1]
+        else:
+            # words = segment_jieba(sent, stopWords)
+            # # words = segment_pku(sent, stopWords)
+            # # print(words)
+            # word_tag = pos_tag(words, pos_model_path)
+            # # print(word_tag)
+            # ner_tag = recognize(word_tag, ner_model_path)
+            # arcs = parser(word_tag, par_model_path)
+            # arc_str = " ".join("%d:%s" % (arc.head, arc.relation) for arc in arcs)
+            # arcs_dict[tuple(words)] = arc_str
+            # # labeller(word_tag, arcs, srl_model_path) # 语义角色标注
+            # child_dict_list = build_parse_child_dict(words, word_tag.values(), arcs)
+            cor = fact_triple_extract(sent, out_file_name, corpus_file_name)
+    '''
+
+
+
 
 
 
