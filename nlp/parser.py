@@ -64,9 +64,9 @@ def segment_jieba(sentence, stopwords):
     segResult = jieba.lcut(sentence)
     words = []
     for word in segResult:
-        if word in stopwords:
-            continue
-        elif word.isspace():
+        # if word in stopwords:
+        #     continue
+        if word.isspace():
             continue
         else:
             words.append(word)
@@ -240,12 +240,10 @@ def fact_triple_extract(sentence, out_file, corpus_file):
     """
 
     words = segment_jieba(sentence, stopWords)
-    # print "\t".join(words)
     postags = pos_tag(words, pos_model_path)
     netags = recognize(words, postags, ner_model_path)
     arcs = parser(words, postags, par_model_path)
     # print "\t".join("%d:%s" % (arc.head, arc.relation) for arc in arcs)
-
 
     NE_list = set()
     for i in range(len(netags)):
@@ -259,7 +257,7 @@ def fact_triple_extract(sentence, out_file, corpus_file):
             else:
                 e = words[j]
                 NE_list.add(e)
-
+    # print(NE_list)
     corpus_flag = False
     child_dict_list = build_parse_child_dict(words, postags, arcs)
     for index in range(len(postags)):
@@ -392,7 +390,6 @@ def extact_start(sents, out_file_path, corpus_file_path):
     for sent in sents:
         # print(sent)
         if '：' in sent and sent.split('：')[1] != '':
-            # info_dict = dict()
             info_dict[sent.split('：')[0]] = sent.split('：')[1]
         else:
             try:
@@ -406,14 +403,14 @@ def extact_start(sents, out_file_path, corpus_file_path):
     out_file.close()
     corpus_file.close()
 
-    # print(info_dict)
+    print(info_dict)
 
 
 
 # 自定义文本位置
 text_file = '/home/kdd/nlp/业务约定书.docx'
 stopwords_file = '/home/kdd/nlp/stop_words.txt'
-out_file_path = '/home/kdd/nlp/out_file.txt'
+out_file_path = '/home/kdd/nlp/result.txt'
 corpus_file_path = '/home/kdd/nlp/corpus.txt'
 
 # ltp模型路径s
@@ -438,8 +435,8 @@ if __name__ == '__main__':
     # print(sents)
 
     # 依存句法分析
-    fact_triple_extract(sents, out_file_path, corpus_file_path)
-    '''
+    # extact_start(sents, out_file_path, corpus_file_path)
+
     arcs_dict = dict()
     info_dict = dict()
     info_dict['title'] = sents[0]
@@ -449,22 +446,33 @@ if __name__ == '__main__':
             # info_dict = dict()
             info_dict[sent.split('：')[0]] = sent.split('：')[1]
         else:
-            # words = segment_jieba(sent, stopWords)
-            # # words = segment_pku(sent, stopWords)
-            # # print(words)
-            # word_tag = pos_tag(words, pos_model_path)
-            # # print(word_tag)
-            # ner_tag = recognize(word_tag, ner_model_path)
-            # arcs = parser(word_tag, par_model_path)
-            # arc_str = " ".join("%d:%s" % (arc.head, arc.relation) for arc in arcs)
-            # arcs_dict[tuple(words)] = arc_str
-            # # labeller(word_tag, arcs, srl_model_path) # 语义角色标注
-            # child_dict_list = build_parse_child_dict(words, word_tag.values(), arcs)
-            cor = fact_triple_extract(sent, out_file_name, corpus_file_name)
-    '''
+            if '委托方' in sent:
+                sent = sent.replace('委托方', info_dict['委托方'])
+            if '甲方' in sent:
+                sent = sent.replace('甲方', info_dict['甲方'])
+            if '受托方' in sent:
+                sent = sent.replace('受托方', info_dict['受托方'])
+            if '乙方' in sent:
+                sent = sent.replace('乙方', info_dict['乙方'])
+            # print(sent)
 
+            words = segment_jieba(sent, stopWords)
+            # words = segment_pku(sent, stopWords)
+            # print(words)
+            postags = pos_tag(words, pos_model_path)
+            # print(word_tag)
+            ner_tag = recognize(words, postags, ner_model_path)
+            arcs = parser(words, postags, par_model_path)
+            arc_str = " ".join("%d:%s" % (arc.head, arc.relation) for arc in arcs)
+            arcs_dict[tuple(words)] = arc_str
+        # labeller(word_tag, arcs, srl_model_path) # 语义角色标注
+        # child_dict_list = build_parse_child_dict(words, word_tag.values(), arcs)
+        # cor = fact_triple_extract(sent, out_file_name, corpus_file_name)
+        # print(words)
+        # print(list(ner_tag))
+    print(arcs_dict)
 
-
+s
 
 
 
