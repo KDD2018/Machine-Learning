@@ -59,7 +59,8 @@ def segment_jieba(sentence, stopwords):
     Returns: words 分词结果
     '''
 
-    jieba.load_userdict('/home/kdd/nlp/userdict.txt')
+    # jieba.set_dictionary('/home/kdd/nlp/dict.txt')
+    # jieba.load_userdict('/home/kdd/nlp/userdict.txt')
     # sentence = ' '.join(sentence)
     segResult = jieba.lcut(sentence)
     words = []
@@ -440,6 +441,8 @@ if __name__ == '__main__':
     arcs_dict = dict()
     info_dict = dict()
     info_dict['title'] = sents[0]
+    # jieba.set_dictionary('/home/kdd/nlp/dict.txt')
+    jieba.load_userdict('/home/kdd/nlp/userdict.txt')
     for sent in sents:
         # print(sent)
         if '：' in sent and sent.split('：')[1] != '':
@@ -468,11 +471,11 @@ if __name__ == '__main__':
         # labeller(word_tag, arcs, srl_model_path) # 语义角色标注
         # child_dict_list = build_parse_child_dict(words, word_tag.values(), arcs)
         # cor = fact_triple_extract(sent, out_file_name, corpus_file_name)
-        # print(words)
+        #     print(words)
         # print(list(ner_tag))
     print(arcs_dict)
 
-s
+
 
 
 
