@@ -5,9 +5,10 @@ import pymongo
 import pandas as pd
 import numpy as np
 from sqlalchemy import create_engine
-import pymysql
 from datetime import datetime
 from sklearn.preprocessing import LabelEncoder
+from sklearn import svm
+from sklearn.model_selection import train_test_split, StratifiedKFold, cross_val_score
 
 
 def connect_mongo(projection):
@@ -56,11 +57,24 @@ data['car_age'] = pd.cut(data.car_age, bins=[-1,1.1,3.1,5.1,8.1,50],
 data['sell_times'] = pd.cut(data.sell_times, bins=[-1,1,3,5,8,20],
                               labels=['0次','2次以内','4次以内','7次以内','7次以上'])  # 过户次数
 
-labelencoder = LabelEncoder() # 标签实例化
-data['sell_times'] = labelencoder.fit_transform(data['sell_times'])
+# labelencoder = LabelEncoder() # 标签实例化
+# data['sell_times'] = labelencoder.fit_transform(data['sell_times'])
+# data['displacement_label'] = labelencoder.fit_transform(data['displacement'])
+# data['gearbox_label'] = labelencoder.fit_transform(data['semiautomatic_gearbox'])
+# data['carAge_label'] = labelencoder.fit_transform(data['car_age'])
+col = ['car_address', 'emission_standard', 'is_have_strong_risk', 'level', 'registe_time', 'title', 'year_check_end_time']
+df = data.drop(columns=col)  # 删除无效字段
 
-print(set(data.sell_times))
-# print(set(data.level))
-# print(set(data.life_span))
-print(data.head())
-# print(type(data.car_price[0]))
+# 准备训练集和测试集的特征值、目标值
+target = df['car_price']
+feature_name = df[['displacement','meter_mile','sell_times','semiautomatic_gearbox','car_age']]
+feature = pd.get_dummies(feature_name)  # 哑变量编码
+X_train, X_test, y_train, y_test = train_test_split(feature, target, test_size=0.3)  # 直接划分训练集
+
+
+# 建立模型
+regressor = svm.SVR()
+regressor = regressor.fit(X_train, y_train)
+score = regressor.score(X_test, y_test)
+print(score)
+# print(df.head())
