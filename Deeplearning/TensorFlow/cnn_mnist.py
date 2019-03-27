@@ -102,7 +102,7 @@ def conv_fc():
 
 	# 梯度下降，优化损失
 	with tf.variable_scope('optimizer'):
-		train_op = tf.train.GradientDescentOptimizer(0.01).minimize(loss)
+		train_op = tf.train.GradientDescentOptimizer(0.001).minimize(loss)
 
 	# 计算准确率
 	with tf.variable_scope('acc'):
@@ -125,6 +125,7 @@ def conv_fc():
 if __name__ == '__main__':
 	# 获取手写数字识别数据集MNIST
 	mnist = input_data.read_data_sets(FLAGS.data_dir, one_hot=True)
+	# 卷积神经网络
 	conv_fc()
 
 
