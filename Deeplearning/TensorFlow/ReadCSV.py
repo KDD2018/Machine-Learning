@@ -1,8 +1,10 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
+
 import tensorflow as tf
 import os
+
 
 def csv_reader(filelist):
 	'''
