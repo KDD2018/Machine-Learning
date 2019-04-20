@@ -2,13 +2,13 @@
 # -*- coding: utf-8 -*-
 
 
-
 import tensorflow as tf
 import os
 
+
 def myregress():
     '''
-    运用Tensorflow实现简单现行回归
+    运用Tensorflow实现简单线性回归
     :return: None
     '''
 
@@ -23,7 +23,7 @@ def myregress():
         weight = tf.Variable(tf.random_normal([1,1], mean=.0, stddev=1.0), name='Weight', trainable=True)
         bias = tf.Variable(0.0, name='bias', trainable=True)
         # 预测值
-        y_hat = tf.matmul(X, weight) +bias
+        y_hat = tf.matmul(X, weight) + bias
 
     with tf.variable_scope('loss'):
         # 3、 求损失函数
