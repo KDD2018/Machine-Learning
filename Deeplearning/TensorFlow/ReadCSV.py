@@ -22,22 +22,22 @@ def csv_reader(filelist):
 	key, value = reader.read(file_queue)
 
 	# 3、对每行内容进行解码，record_default:指定每一个样本的每一列的类型
-	records = [['None'],['None'],['None'],['None']]
-	building = tf.decode_csv(records=value, record_defaults=records)
+	records = [['None'],['None'],['None'],['None'],['None'],[0],[1.0],[0],[0]]
+	sample = tf.decode_csv(records=value, record_defaults=records)
 	
 	# 4、批处理，读取多条数据
-	building_batch = tf.train.batch(building, batch_size = 100, num_threads=1, capacity=100)
-	return building_batch
+	sample_batch = tf.train.batch(sample, batch_size=100, num_threads=1, capacity=100)
+	return sample_batch
 
 
 if __name__ == '__main__':
 	# 1、准备文件列表
-	file_name = os.listdir('/home/kdd/python')
-	filelist = [os.path.join('/home/kdd/python', file) for file in file_name]
-	# print(filelist)
+	file_name = os.listdir('/home/kdd/python/data/csv')
+	filelist = [os.path.join('/home/kdd/python/data/csv', file) for file in file_name]
+	print(filelist)
 
 	# 2、构造阅读器，批量读取csv
-	building_batch = csv_reader(filelist)
+	sample_batch = csv_reader(filelist)
 
 	# 3、开启会话运行
 	with tf.Session() as sess:
@@ -48,10 +48,10 @@ if __name__ == '__main__':
 		threads = tf.train.start_queue_runners(sess, coord=coord)
 
 		# 打印读取的内容
-		building_batch = sess.run(building_batch)
-		for build in building_batch:
-			build_name = [bn.decode('UTF-8') for bn in build]
-			print(build_name)
+		sample_batch = sess.run(sample_batch)
+		for sample in sample_batch:
+			sample_name = [f.decode('UTF-8') for f in sample]
+			print(sample_name)
 
 		# 回收线程
 		coord.request_stop()
