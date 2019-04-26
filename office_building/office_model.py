@@ -91,17 +91,12 @@ df_office.to_csv(
 # 2. 预处理（删除异常值和缺失值）
 
 
-df_office = df_office.drop(
-    index=df_office[df_office.completion_time == 2020].index)
+df_office = df_office.drop(index=df_office[df_office.completion_time == 2020].index)
 df_office = df_office.drop(index=df_office[df_office.renovation == ''].index)
-df_office = df_office.drop(
-    index=df_office[df_office.current_floor.isnull()].index)
-df_office = df_office.drop(
-    index=df_office[df_office.building_name == '投资广场'].index)
-df_office = df_office.drop(
-    index=df_office[df_office.property_fee.isnull()].index)
-df_office = df_office.drop(
-    index=df_office[df_office.passenger_elevators.isnull()].index)
+df_office = df_office.drop(index=df_office[df_office.current_floor.isnull()].index)
+df_office = df_office.drop(index=df_office[df_office.building_name == '投资广场'].index)
+df_office = df_office.drop(index=df_office[df_office.property_fee.isnull()].index)
+df_office = df_office.drop(index=df_office[df_office.passenger_elevators.isnull()].index)
 df_office = df_office.drop(
     index=df_office[df_office.underground_parking.isnull()].index)
 df_office = df_office.drop(
@@ -116,11 +111,9 @@ df_office = df_office.drop(
     index=df_office[df_office.property_fee == 200].index)
 
 
-df_office['completion_time'] = df_office['completion_time'].astype(
-    int)  # 转换建成年代为int类型
+df_office['completion_time'] = df_office['completion_time'].astype(int)  # 转换建成年代为int类型
 df_office['property_fee'] = df_office['property_fee'].astype(float)
-df_office['standard_floor_area'] = df_office['standard_floor_area'].astype(
-    float)
+df_office['standard_floor_area'] = df_office['standard_floor_area'].astype(float)
 df_office['passenger_elevators'] = df_office['passenger_elevators'].astype(int)
 df_office['underground_parking'] = df_office['underground_parking'].astype(int)
 df_office['unit_price'] = df_office['unit_price'].astype(float)

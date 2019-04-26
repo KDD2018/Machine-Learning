@@ -60,9 +60,44 @@ class PTBModel(object):
 				outputs.append(cell_output)
 		# concat()函数用于将输出的outputs展开成[batch_size, size * num_steps]的形状，然后再用reshape()转换为[batch_size * num_steps, size]的形状
 		output = tf.reshape(tf.concat(outputs, 1), [-1, self.size])
+		
+		
+		# 开始计算交叉熵损失
+		weight = tf.get_variable('softmax', [self.size, self.vocab_size], dtype=tf.float32)
+		bias = tf.get_variable('softmax_b', [self.vocab_size], dtype=tf.float32)
+		logits = tf.matmul(output, weight) + bias
+		
+		# Tensorflow提供legacy_seq2seq.sequence_loss_by_example函数用于计算一个序列的交叉熵和
+		loss = tf.contrib.legacy_seq2seq.sequence_loss_by_example([logits], [tf.reshape(self,targets, [-1])], [tf.ones([batch_size * num_steps], dtype=tf.float32)])
+		
+		# 计算每个batch的平均损失
+		self.cost = cost = tf.reduce_sum(loss) / batch_size
+		self.final_state = state
 
+		# 只在训练时定义反向传播操作		
+		if not is_training:
+			return
 
+		self.learning_rate = tf.Variable(0.0, trainable=False)
+		
+		# trainable_variables指全部可以训练的参数
+		trainable_variables = tf.trainable_variables()
+		
+		# 计算self.cost关于trainable_variables的梯度
+		gradients = tf.gradients(cost, trainable_variables)
 
+		# 通过clip_by_global_norm()函数控制梯度大小，以免发生梯度膨胀
+		clipped_grads, _ = tf.clip_by_global_norm(gradients, config.max_grad_norm)
+
+		# 使用随机梯度下降优化器并定义训练的步骤
+		SGDOptimizer = tf.train.GradientDescentOptimizer(self.learning_rate)
+		self.train_op = SGDOptimizer.apply_gradients(zip(clipped_grads, trainable_variables), global_step=tf.contrib.framwork.get_or_create_global_step())
+		self.new_learning_rate = tf.placeholder(tf.float32, shape=[], name='new_learning_rate')
+		self.learning_rate_update = tf.assign(self.learning_rate, self.new_learning_rate)
+	
+
+	def assign_lr(self, session, lr_value):
+		session.run(self.learning_rate_update, feed_dict={self.new_learning_rate: lr_value})
 
 
 train_data, valid_data, test_data, _ = reader.ptb_raw_data(FLAGS.PBTdata_dir)
