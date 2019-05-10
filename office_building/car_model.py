@@ -79,7 +79,7 @@ def model_select(model_name, X_train, X_test, y_train, y_test):
 
 
 
-if '__name__' == '__main__':
+if __name__ == '__main__':
     # 划分数据集
     X_train, X_test, y_train, y_test = split_data(df)
     # print(X_train.shape, X_test.shape, y_train.shape, y_test.shape)

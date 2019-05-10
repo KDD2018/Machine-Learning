@@ -104,29 +104,53 @@ def line_plot(data):
     return low_whisker, up_whisker
 
 
-def read_csv(filelist):
+def preprocess(data):
     '''
-    tensorflow读取csv
-    :param filelist: 文件列表
-    :return: 批次数据
+    数据预处理
+    :param data: 要处理的数据框
+    :return: 与处理后的数据框
     '''
-    # 1、构造文件队列
-    file_queue = tf.train.string_input_producer(filelist)
-    # file_queue = tf.data.Dataset.from_tensor_slices(filelist)
 
-    # 2、 构造CSV阅读器，读取队列数据
-    reader = tf.TextLineReader()
-    # reader = tf.data.TextLineDataset()
-    key, value = reader.read(file_queue)
+    data['risk_27_check'] = data['risk_27_check'].fillna('None')
+    data = data[data['risk_27_check'].isin(['None', '0'])]  # 去除重大事故的车
+    data = data[data['sell_times'] < 5]  # 去除过户次数大于4次的二手车
+    data['meter_mile'] = data['meter_mile'] / 10000.0  # 换算成万公里
+    data['car_price'] = data['car_price'] / 10000.0  # 换算成万元
+    data = data.dropna()
+    # print(data.isnull().any())
+    data['car_age'] = data['register_time'].map(lambda x: (datetime.now() - x).days / 365)
+    data = data[data.car_type != '0']  # 去除无法确认的的车型
 
-    # 3、对每行内容进行解码，record_default:指定每一个样本的每一列的类型
-    records = [['None'], ['None'], ['None'], ['None'], ['None'], [0], [1.0], [0], [0]]
-    sample = tf.decode_csv(records=value, record_defaults=records)
+    return data
 
-    # 4、批处理，读取多条数据
-    sample_batch = tf.train.batch(sample, batch_size=100, num_threads=1, capacity=100)
 
-    return sample_batch
+def feature_encode(data):
+    '''
+    特征离散编码
+    :param data: 数据框
+    :return: 特征编码后的数据框
+    '''
+    data['displacement'] = pd.cut(data.displacement, bins=[-1, 0.01, 1, 1.6, 2, 3, 4, 8],
+                                  labels=['0L', '0.01-1L', '1-1.6L', '1.6-2L', '2-3L', '3-4L', '4L以上'])  # 排量
+    data['car_age'] = pd.cut(data.car_age, bins=[-1, 1, 3, 5, 8, 50],
+                             labels=['1年以内', '1-3年', '3-5年', '5-8年', '8年以上'])  # 车龄
+    data['sell_times'] = pd.cut(data.sell_times, bins=[-1, 0.1, 1.1, 2.1, 3.1, 4.1],
+                                labels=['0次', '1次', '2次', '3次', '4次'])  # 过户次数
+
+    return data
+
+
+def write2csv(data, batch_size):
+    '''
+    将数据框分批次写入多个csv
+    :param batch_size: 每批次写入样本数量
+    '''
+    epoch = math.ceil(df.shape[0] / batch_size)
+    print('**********************开始写入CSV文件*****************************')
+    for i in range(epoch):
+        data = df[i * 50000: (i + 1)*50000]
+        data.to_csv('/home/kdd/python/car/car_%d.csv'%i, encoding='gbk', chunksize=10000)  # 写入csv
+    print('**********************完成CSV文件写入*****************************')
 
 
 def split_data(data):
@@ -171,11 +195,8 @@ def model_select(model_name, X_train, X_test, y_train, y_test):
     plt.show()
 
 
-
-
 # np.set_printoptions(threshold=np.inf)
 pd.set_option('display.max_columns', None)
-
 
 # Mongodb查询文档字段
 project = {'_id': 0, 'title': 1, 'car_address': 1, 'displacement': 1, 'emission_standard': 1,
@@ -187,6 +208,7 @@ sql = """
 select
 	brand_name,
 	vehicle_system_name,
+	car_model_name,
 	register_time,
 	meter_mile,
 	semiautomatic_gearbox,
@@ -194,78 +216,61 @@ select
 	sell_times,
 	risk_27_check,
 	`type`,
+	car_class,
 	price
 from
 	second_car_sell
 """
 
-col = ['brand_name', 'car_system', 'register_time', 'meter_mile', 'gearbox', 'displacement', 'sell_times',
-       'risk_27_check', 'car_type', 'car_price']
-
+col = ['brand_name', 'car_system', 'car_model','register_time', 'meter_mile', 'gearbox', 'displacement', 'sell_times',
+       'risk_27_check', 'car_type', 'car_class', 'car_price']
+col1 = ['brand_name', 'car_system', 'car_model', 'gearbox', 'sell_times','displacement','car_age', 'meter_mile',
+        'car_type', 'car_price']
 # 获取Mongodb数据
 # data = connect_mongo(project)
 # data.to_csv('/home/kdd/Desktop/car.csv', encoding='gbk')  # 写入csv
 
-# 获取MySQL数据
-data = conn_mysql(sql, col)
+car_class_dict = {'suv': ['大型SUV', '中大型SUV', '小型SUV', '紧凑型SUV', '中型SUV'],
+                  'saloon': ['小型车', '大型车', '微型车', '中大型车', '中型车', '紧凑型车'], 'supercar': '跑车',
+                  'pickup': ['皮卡', '微卡', '高端皮卡'], 'mpv': 'MPV', 'minibus':['轻客', '微面']}
 
 
-# 数据预处理
-data['risk_27_check'] = data['risk_27_check'].fillna('None')
-data = data[data['risk_27_check'].isin(['None', '0'])]  # 去除重大事故的车
+if __name__ == '__main__':
+    # 获取MySQL数据
+    data = conn_mysql(sql, col)
+    data = data[data.car_class=='saloon']  #  分别对每类车进行建模
+    # print(data.head())
 
-data = data[data['sell_times'] < 5]  # 去除过户次数大于4次的二手车
-data['meter_mile'] = data['meter_mile'] / 10000.0  # 换算成万公里
-data['car_price'] = data['car_price'] / 10000.0# 换算成万元
-data = data[data.car_price != data['car_price'].max()]  # 去除异常（价格最大的跑车）
-# data = data.dropna()
-# print(data.isnull().any())
-data['car_age'] = data['register_time'].map(lambda x: (datetime.now() - x).days / 365)
+    # 数据预处理
+    data = preprocess(data)
 
-# 去除异常
-# low_whisker, up_whisker =  boxplot(data['meter_mile'])
-# l, u = boxplot(data.car_price)
-# data = data[~(data.meter_mile > up_whisker) | (data.meter_mile < low_whisker)]
-# low_whisker, up_whisker =  line_plot(data['car_price'])
-# data = data[~(data.car_price > u) | (data.car_price < l)]
+    # 特征编码
+    data = feature_encode(data)
 
+    # 去除异常
+    # low_whisker, up_whisker =  boxplot(data['meter_mile'])
+    # l, u = boxplot(data.car_price)
+    # data = data[~(data.meter_mile > up_whisker) | (data.meter_mile < low_whisker)]
+    # low_whisker, up_whisker =  line_plot(data['car_price'])
+    # data = data[~(data.car_price > u) | (data.car_price < l)]
 
-# 特征编码
-data['displacement'] = pd.cut(data.displacement, bins=[-1, 0.01, 1, 1.6, 2, 3, 4, 8],
-                              labels=['0L', '0.01-1L', '1-1.6L', '1.6-2L', '2-3L', '3-4L', '4L以上'])  # 排量
-data['car_age'] = pd.cut(data.car_age, bins=[-1, 1, 3, 5, 8, 50],
-                         labels=['1年以内', '1-3年', '3-5年', '5-8年', '8年以上'])  # 车龄
-data['sell_times'] = pd.cut(data.sell_times, bins=[-1, 0.1, 1.1, 2.1, 3.1, 4.1],
-                            labels=['0次', '1次', '2次', '3次', '4次'])  # 过户次数
-# 标准化
-# scale_data = StandardScaler().fit_transform(data[['meter_mile', 'car_price']])
-# mim_max_scaler = MinMaxScaler().fit_transform(data[['meter_mile', 'car_price']])
-# data['meter_mile'] = mim_max_scaler[:, 0]
-# data['car_price'] = mim_max_scaler[:, 1]
+    # 有效字段
+    df = data[col1]
+    df.reset_index(drop=True)
+    print(set(data.car_class))
+    print(df.shape)
 
-# 有效字段
-col1 = ['brand_name', 'gearbox', 'sell_times','displacement','car_age', 'meter_mile',  'car_price']
-df = data[col1]
-df.reset_index(drop=True)
+    # 将数据框分批次写入多个csv
+    # write2csv(data=df, batch_size=50000)
+    # print(set(df['car_type']))
+    # df.to_csv('/home/kdd/python/car/car.csv', encoding='gbk', chunksize=10000)
 
+    # 划分数据集
+    X_train, X_test, y_train, y_test = split_data(df)
+    # print(X_train.shape, X_test.shape, y_train.shape, y_test.shape)
 
-
-# 分批次写入CSV文件
-batch_size = 50000
-epoch = math.ceil(df.shape[0] / batch_size)
-print('**********************开始写入CSV文件*****************************')
-for i in range(epoch):
-    data = df[i * 50000: (i + 1)*50000]
-    data.to_csv('/home/kdd/python/car/car_%d.csv'%i, encoding='gbk', chunksize=10000)  # 写入csv
-print('**********************完成CSV文件写入*****************************')
-
-
-# 划分数据集
-# X_train, X_test, y_train, y_test = split_data(df)
-# print(X_train.shape, X_test.shape, y_train.shape, y_test.shape)
-
-# 建立机器学习模型
-# model_select('GBR', X_train, X_test, y_train, y_test)  # 模型名称 ['SVR', 'CART', 'RF', 'GBR']
+    # 建立机器学习模型
+    model_select('RF', X_train, X_test, y_train, y_test)  # 模型名称 ['SVR', 'CART', 'RF', 'GBR']
 
 
 

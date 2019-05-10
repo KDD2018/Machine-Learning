@@ -97,18 +97,12 @@ df_office = df_office.drop(index=df_office[df_office.current_floor.isnull()].ind
 df_office = df_office.drop(index=df_office[df_office.building_name == '投资广场'].index)
 df_office = df_office.drop(index=df_office[df_office.property_fee.isnull()].index)
 df_office = df_office.drop(index=df_office[df_office.passenger_elevators.isnull()].index)
-df_office = df_office.drop(
-    index=df_office[df_office.underground_parking.isnull()].index)
-df_office = df_office.drop(
-    index=df_office[df_office.standard_floor_area == '1350㎡09出售'].index)
-df_office = df_office.drop(
-    index=df_office[df_office.standard_floor_area == '2000 ㎡\xa0 总建筑'].index)
-df_office = df_office.drop(
-    index=df_office[df_office.standard_floor_area.isnull()].index)
-df_office = df_office.drop(
-    index=df_office[df_office.property_fee == 900].index)
-df_office = df_office.drop(
-    index=df_office[df_office.property_fee == 200].index)
+df_office = df_office.drop(index=df_office[df_office.underground_parking.isnull()].index)
+df_office = df_office.drop(index=df_office[df_office.standard_floor_area == '1350㎡09出售'].index)
+df_office = df_office.drop(index=df_office[df_office.standard_floor_area == '2000 ㎡\xa0 总建筑'].index)
+df_office = df_office.drop(index=df_office[df_office.standard_floor_area.isnull()].index)
+df_office = df_office.drop(index=df_office[df_office.property_fee == 900].index)
+df_office = df_office.drop(index=df_office[df_office.property_fee == 200].index)
 
 
 df_office['completion_time'] = df_office['completion_time'].astype(int)  # 转换建成年代为int类型
@@ -119,44 +113,30 @@ df_office['underground_parking'] = df_office['underground_parking'].astype(int)
 df_office['unit_price'] = df_office['unit_price'].astype(float)
 df_office['total_floor'] = df_office['total_floor'].astype(int)
 
-df_office = df_office.drop(
-    index=df_office[df_office.unit_price > 100000].index)
+df_office = df_office.drop(index=df_office[df_office.unit_price > 100000].index)
 df_office = df_office.drop(index=df_office[df_office.unit_price < 10000].index)
-df_office['floor_at'] = floor_standard(
-    df_office.current_floor,
-    df_office.total_floor)
+df_office['floor_at'] = floor_standard(df_office.current_floor, df_office.total_floor)
 
 
 # 3. 特征工程（离散编码）
 df_office['support'] = pd.cut(
     df_office.building_support, bins=[-1, 1, 7, 9], labels=[1, 2, 3])  # 楼内配套
-df_office['office_age'] = pd.cut(
-    df_office.completion_time, bins=[
-        0, 2000, 2005, 2010, 2020], labels=[
-            0, 1, 2, 3])  # 写字楼房龄
-df_office['property'] = pd.cut(
-    df_office.property_fee, bins=[
-        0, 20, 40, 100], labels=[
-            1, 2, 3])  # 物业费
-df_office['standard_area'] = pd.cut(
-    df_office.standard_floor_area, bins=[
-        0, 2000, 6000, 10000, 20000], labels=[
-            1, 2, 3, 4])  # 标准层面积
-df_office['passenger_ele'] = pd.cut(
-    df_office.passenger_elevators, bins=[
-        0, 5, 10, 15, 25, 50], labels=[
-            0, 1, 2, 3, 4])  # 电梯
-df_office['parking'] = pd.cut(
-    df_office.underground_parking, bins=[
-        0, 500, 1000, 2000, 5000], labels=[
-            0, 1, 2, 3])  # 停车位
+df_office['office_age'] = pd.cut(df_office.completion_time, bins=[0, 2000, 2005, 2010, 2020],
+                                 labels=[0, 1, 2, 3])  # 写字楼房龄
+df_office['property'] = pd.cut(df_office.property_fee, bins=[0, 20, 40, 100],
+                               labels=[1, 2, 3])  # 物业费
+df_office['standard_area'] = pd.cut(df_office.standard_floor_area, bins=[0, 2000, 6000, 10000, 20000],
+                                    labels=[1, 2, 3, 4])  # 标准层面积
+df_office['passenger_ele'] = pd.cut(df_office.passenger_elevators, bins=[0, 5, 10, 15, 25, 50],
+                                    labels=[0, 1, 2, 3, 4])  # 电梯
+df_office['parking'] = pd.cut(df_office.underground_parking, bins=[0, 500, 1000, 2000, 5000],
+                              labels=[0, 1, 2, 3])  # 停车位
 # print(df_office.isnull().any()) # 查看字段是否缺失数据
-df_office['decoration'] = df_office['renovation'].map(
-    {'毛坯': 0, '简装修': 1, '精装修': 2})
+df_office['decoration'] = df_office['renovation'].map({'毛坯': 0, '简装修': 1, '精装修': 2})
 df_office['floor_at'] = df_office['floor_at'].map({'低区': 0, '中区': 1, '高区': 2})
 df_office['segment'] = df_office['segmention'].map({'不可分割': 0, '可分割': 1})
-df_office['district'] = df_office['district'].map({'东城': 1, '西城': 2, '朝阳': 3, '海淀': 4, '通州': 5, '丰台': 6, '大兴': 7,
-                                                   '昌平': 8, '顺义': 9})
+df_office['district'] = df_office['district'].map({'东城': 1, '西城': 2, '朝阳': 3, '海淀': 4, '通州': 5, '丰台': 6,
+                                                   '大兴': 7,'昌平': 8, '顺义': 9})
 # label_mapping = {lab:idx for idx,lab in enumerate(set(df_office['area_name']))}
 # df_office['area_name'] = df_office['area_name'].map(label_mapping)  # 商圈编码
 # print(set(df_office.district))
