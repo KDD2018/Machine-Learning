@@ -116,11 +116,16 @@ def preprocess(data):
     data = data[data['sell_times'] < 5]  # 去除过户次数大于4次的二手车
     data['meter_mile'] = data['meter_mile'] / 10000.0  # 换算成万公里
     data['car_price'] = data['car_price'] / 10000.0  # 换算成万元
+    data['meter_future_rate'] = 1 - data['meter_mile'] / 60  # 转换成行驶里程成新率
     data = data.dropna()
     # print(data.isnull().any())
-    data['car_age'] = data['register_time'].map(lambda x: (datetime.now() - x).days / 365)
+    data['car'] = data['car_system'] + data['displacement'].map(lambda x: str(x))  # 拼接车系+排量
+    data['register_time'] = data['register_time'].map(lambda x: datetime.date(x))
+    data['car_age'] = data['register_time'].map(
+        lambda x: ((datetime.now().year - x.year) * 12 + (datetime.now().month - x.month))/12)
+    # data['time_future_rate'] = 1 - data['car_age'] / 15
     data = data[data.car_type != '0']  # 去除无法确认的的车型
-
+    # data = data[data.car_price < data['car_price'].max()]
     return data
 
 
@@ -130,13 +135,12 @@ def feature_encode(data):
     :param data: 数据框
     :return: 特征编码后的数据框
     '''
-    data['displacement'] = pd.cut(data.displacement, bins=[-1, 0.01, 1, 1.6, 2, 3, 4, 8],
-                                  labels=['0L', '0.01-1L', '1-1.6L', '1.6-2L', '2-3L', '3-4L', '4L以上'])  # 排量
+    # data['displacement'] = pd.cut(data.displacement, bins=[-1, 0.01, 1, 1.6, 2, 3, 4, 8],
+    #                               labels=['0L', '0.01-1L', '1-1.6L', '1.6-2L', '2-3L', '3-4L', '4L以上'])  # 排量
     data['car_age'] = pd.cut(data.car_age, bins=[-1, 1, 3, 5, 8, 50],
                              labels=['1年以内', '1-3年', '3-5年', '5-8年', '8年以上'])  # 车龄
     data['sell_times'] = pd.cut(data.sell_times, bins=[-1, 0.1, 1.1, 2.1, 3.1, 4.1],
                                 labels=['0次', '1次', '2次', '3次', '4次'])  # 过户次数
-
     return data
 
 
@@ -162,11 +166,12 @@ def split_data(data):
     target = data.iloc[:,-1]
     feature_X = data.iloc[:,:-1]
     feature = pd.get_dummies(feature_X)  # 哑变量编码
-    X_train, X_test, y_train, y_test = train_test_split(feature, target, test_size=0.3)
-    return X_train, X_test, y_train, y_test
+    X_train, X_test_data, y_train, y_test_data = train_test_split(feature, target, test_size=0.3)
+    X_test, X_valid, y_test, y_valid = train_test_split(X_test_data, y_test_data, test_size=0.3)
+    return X_train, X_test, X_valid, y_train, y_test, y_valid
 
 
-def model_select(model_name, X_train, X_test, y_train, y_test):
+def model_select(model_name, X_train, X_test, X_valid, y_train, y_test, y_valid):
     '''
     确定最优模型
     :param model_name: 模型名称 ['SVR', 'CART', 'RF', 'GBR']
@@ -184,14 +189,18 @@ def model_select(model_name, X_train, X_test, y_train, y_test):
     score = regressor.score(X_test, y_test)
     print('\n**************拟合优度为：%f**************'%score)
     prediction = regressor.predict(X_test)
-    # print(regressor.feature_importances_)
     mse = mean_squared_error(y_true=y_test, y_pred=prediction, multioutput='uniform_average')
     print('\n**************均方误差为：%f**************' %mse)
 
-    res = prediction - y_test
-    plt.scatter(y_test, res)
-    plt.xlabel('y_test_true')
+    y_hat = regressor.predict(X_valid)
+    abe = sum(abs(y_hat - y_valid)) / len(y_hat)
+    print('\n**************平均绝对误差为：%f**************' %abe)
+    # print(regressor.feature_importances_)
+
+    plt.scatter( y_valid, y_hat -y_valid)
+    plt.xlabel('y_valid_true')
     plt.ylabel('residual')
+    plt.grid()
     plt.show()
 
 
@@ -208,7 +217,6 @@ sql = """
 select
 	brand_name,
 	vehicle_system_name,
-	car_model_name,
 	register_time,
 	meter_mile,
 	semiautomatic_gearbox,
@@ -220,12 +228,14 @@ select
 	price
 from
 	second_car_sell
+where
+    car_class='supercar'
 """
 
-col = ['brand_name', 'car_system', 'car_model','register_time', 'meter_mile', 'gearbox', 'displacement', 'sell_times',
+col = ['brand_name', 'car_system', 'register_time', 'meter_mile', 'gearbox', 'displacement', 'sell_times',
        'risk_27_check', 'car_type', 'car_class', 'car_price']
-col1 = ['brand_name', 'car_system', 'car_model', 'gearbox', 'sell_times','displacement','car_age', 'meter_mile',
-        'car_type', 'car_price']
+col1 = ['brand_name', 'car_system', 'car', 'gearbox', 'sell_times','car_age', 'meter_future_rate', 'displacement',
+        'car_price']
 # 获取Mongodb数据
 # data = connect_mongo(project)
 # data.to_csv('/home/kdd/Desktop/car.csv', encoding='gbk')  # 写入csv
@@ -238,11 +248,13 @@ car_class_dict = {'suv': ['大型SUV', '中大型SUV', '小型SUV', '紧凑型SU
 if __name__ == '__main__':
     # 获取MySQL数据
     data = conn_mysql(sql, col)
-    data = data[data.car_class=='saloon']  #  分别对每类车进行建模
-    # print(data.head())
-
+    print(data.head())
+    # print(data.describe(include='all'))
+    # print(data.groupby(data['sell_times']).size())
+    data.to_csv('/home/kdd/python/car/supercar.csv', encoding='gbk', chunksize=10000)
     # 数据预处理
     data = preprocess(data)
+    # print(data.head())
 
     # 特征编码
     data = feature_encode(data)
@@ -256,21 +268,35 @@ if __name__ == '__main__':
 
     # 有效字段
     df = data[col1]
+    # df = df.drop(['car_type'], axis=1)
     df.reset_index(drop=True)
-    print(set(data.car_class))
-    print(df.shape)
+    # df = df[df.car_price<=20]
+    # print(set(data.car_type))
+    # print(df.shape)
+    print(df.head())
 
     # 将数据框分批次写入多个csv
     # write2csv(data=df, batch_size=50000)
     # print(set(df['car_type']))
-    # df.to_csv('/home/kdd/python/car/car.csv', encoding='gbk', chunksize=10000)
+    # df.to_csv('/home/kdd/python/car/car_mpv.csv', encoding='gbk', chunksize=10000)
+
+
+
+    # df = pd.read_csv('/home/kdd/python/car/car_mpv.csv')
+    # print(df.head())
+    # target = df.iloc[:,-1]
+    # feature = df.iloc[:,:-1]
+    # feature = pd.get_dummies(feature)
+    # print(feature.head())
+
 
     # 划分数据集
-    X_train, X_test, y_train, y_test = split_data(df)
-    # print(X_train.shape, X_test.shape, y_train.shape, y_test.shape)
+    # X_train, X_test, X_valid, y_train, y_test, y_valid = split_data(df)
+    # print(X_train.shape, X_test.shape, X_valid.shape, y_train.shape, y_test.shape)
+
 
     # 建立机器学习模型
-    model_select('RF', X_train, X_test, y_train, y_test)  # 模型名称 ['SVR', 'CART', 'RF', 'GBR']
+    # model_select('GBR', X_train, X_test, X_valid, y_train, y_test, y_valid)  # 模型名称 ['SVR', 'CART', 'RF', 'GBR']
 
 
 
