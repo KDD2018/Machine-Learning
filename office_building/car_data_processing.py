@@ -104,11 +104,26 @@ def line_plot(data):
     return low_whisker, up_whisker
 
 
+def months(ts):
+    '''
+    计算指定日期到当前日期之间的月份差
+    :param ts: 指定的日期序列
+    :return: 月份差
+    '''
+    ts = ts.map(lambda x: datetime.date(x))
+    # ts = ts.map(lambda x: )
+    years = date1.year - date2.year
+    month = date1.month - date2.month
+    months = years * 12 + month
+
+    return months
+
+
 def preprocess(data):
     '''
     数据预处理
     :param data: 要处理的数据框
-    :return: 与处理后的数据框
+    :return: 处理后的数据框
     '''
 
     data['risk_27_check'] = data['risk_27_check'].fillna('None')
@@ -119,12 +134,13 @@ def preprocess(data):
     data['meter_future_rate'] = 1 - data['meter_mile'] / 60  # 转换成行驶里程成新率
     data = data.dropna()
     # print(data.isnull().any())
-    data['car'] = data['car_system'] + data['displacement'].map(lambda x: str(x))  # 拼接车系+排量
-    data['register_time'] = data['register_time'].map(lambda x: datetime.date(x))
+    data['model_year'] = data['model_year'].map(lambda x: str(x))
+    data['annual_inspect'] = data['annual_inspect'].map(
+        lambda x: (datetime.now().year - x.year) * 12 + (datetime.now().month - x.month))
+    data['compulsory_insurance'] = data['compulsory_insurance'].map(
+        lambda x: (datetime.now().year - x.year) * 12 + (datetime.now().month - x.month))
     data['car_age'] = data['register_time'].map(
-        lambda x: ((datetime.now().year - x.year) * 12 + (datetime.now().month - x.month))/12)
-    # data['time_future_rate'] = 1 - data['car_age'] / 15
-    data = data[data.car_type != '0']  # 去除无法确认的的车型
+        lambda x: ((datetime.now().year - x.year) * 12 + (datetime.now().month - x.month)) / 12)
     # data = data[data.car_price < data['car_price'].max()]
     return data
 
@@ -217,48 +233,69 @@ sql = """
 select
 	brand_name,
 	vehicle_system_name,
+	car_model_name,
 	register_time,
 	meter_mile,
 	semiautomatic_gearbox,
 	displacement,	
 	sell_times,
 	risk_27_check,
-	`type`,
+	year_check_end_time,
+	is_have_strong_risk,
+	model_year,
 	car_class,
 	price
 from
 	second_car_sell
 where
-    car_class='supercar'
+    car_class='saloon'
 """
 
-col = ['brand_name', 'car_system', 'register_time', 'meter_mile', 'gearbox', 'displacement', 'sell_times',
-       'risk_27_check', 'car_type', 'car_class', 'car_price']
-col1 = ['brand_name', 'car_system', 'car', 'gearbox', 'sell_times','car_age', 'meter_future_rate', 'displacement',
-        'car_price']
-# 获取Mongodb数据
-# data = connect_mongo(project)
-# data.to_csv('/home/kdd/Desktop/car.csv', encoding='gbk')  # 写入csv
+col = ['brand_name', 'car_system', 'car_model_name', 'register_time', 'meter_mile', 'gearbox', 'displacement', 'sell_times',
+       'risk_27_check', 'annual_inspect', 'compulsory_insurance', 'model_year', 'car_level', 'car_price']
+
+col1 = ['brand_name', 'car_system', 'car_age', 'meter_future_rate', 'gearbox', 'displacement', 'sell_times',
+        'compulsory_insurance', 'model_year', 'car_price']
 
 car_class_dict = {'suv': ['大型SUV', '中大型SUV', '小型SUV', '紧凑型SUV', '中型SUV'],
                   'saloon': ['小型车', '大型车', '微型车', '中大型车', '中型车', '紧凑型车'], 'supercar': '跑车',
                   'pickup': ['皮卡', '微卡', '高端皮卡'], 'mpv': 'MPV', 'minibus':['轻客', '微面']}
+brand_grade_dict = {''}
+
+
+# def brand_grade(data):
+#     '''
+#     将汽车品牌划分档次
+#     :param data: 新车报价数据/二手车案例数据
+#     :return: 添加品牌档次的data
+#     '''
+#     data
+
+
+
 
 
 if __name__ == '__main__':
+    # 获取Mongodb数据
+    # data = connect_mongo(project)
+    # data.to_csv('/home/kdd/Desktop/car.csv', encoding='gbk')  # 写入csv
+
     # 获取MySQL数据
     data = conn_mysql(sql, col)
-    print(data.head())
+    # print(data.head())
+
+    # 描述统计分析
     # print(data.describe(include='all'))
-    # print(data.groupby(data['sell_times']).size())
-    data.to_csv('/home/kdd/python/car/supercar.csv', encoding='gbk', chunksize=10000)
+    # data.to_csv('/home/kdd/python/car/saloon.csv', encoding='gbk', chunksize=10000)
+
+
     # 数据预处理
     data = preprocess(data)
     # print(data.head())
 
     # 特征编码
     data = feature_encode(data)
-
+    print(set(data['car_level']))
     # 去除异常
     # low_whisker, up_whisker =  boxplot(data['meter_mile'])
     # l, u = boxplot(data.car_price)
@@ -268,13 +305,31 @@ if __name__ == '__main__':
 
     # 有效字段
     df = data[col1]
-    # df = df.drop(['car_type'], axis=1)
-    df.reset_index(drop=True)
-    # df = df[df.car_price<=20]
-    # print(set(data.car_type))
-    # print(df.shape)
+    df.index = range(len(df))
+    # print(df.head())
+
+    gb = df['car_price'].groupby(df['brand_name']).mean()
+    brand_grade = {}
+    for brand in gb.index:
+        if gb[brand] >=50:
+            brand_grade[brand] = '豪华'
+        elif gb[brand] >=20:
+            brand_grade[brand] = '高端'
+        elif gb[brand] >=8:
+            gb[brand] = '中端'
+        else:
+            gb[brand] = '低端'
+    print(brand_grade)
+
+    df['car_grade'] = pd.Series(np.random.rand(len(df)))
+    for i in df.index:
+        for k, v in brand_grade.items():
+            if df['brand_name'][i] == k:
+                df['car_grade'][i] = v
     print(df.head())
 
+
+    # print(df.head())
     # 将数据框分批次写入多个csv
     # write2csv(data=df, batch_size=50000)
     # print(set(df['car_type']))
@@ -282,12 +337,6 @@ if __name__ == '__main__':
 
 
 
-    # df = pd.read_csv('/home/kdd/python/car/car_mpv.csv')
-    # print(df.head())
-    # target = df.iloc[:,-1]
-    # feature = df.iloc[:,:-1]
-    # feature = pd.get_dummies(feature)
-    # print(feature.head())
 
 
     # 划分数据集
