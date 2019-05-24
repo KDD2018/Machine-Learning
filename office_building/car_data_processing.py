@@ -176,7 +176,7 @@ def split_data(data):
     feature = pd.get_dummies(feature_X)  # 哑变量编码
     my_car_info = pd.DataFrame([feature.iloc[-1, :]])
     feature = feature.iloc[:-1, :]
-    # print(feature_X.head())
+    print(feature.head())
     X_train, X_test_data, y_train, y_test_data = train_test_split(feature, target, test_size=0.3)
     X_test, X_valid, y_test, y_valid = train_test_split(X_test_data, y_test_data, test_size=0.3)
 
@@ -188,7 +188,7 @@ def model_select(model_name, X_train, X_test, X_valid, y_train, y_test, y_valid,
     确定最优模型
     :param model_name: 模型名称 ['SVR', 'CART', 'RF', 'GBR']
     '''
-    print('**************开始训练 %s 模型**************'%model_name)
+    print('\n**************开始训练 %s 模型**************'%model_name)
     if model_name == 'SVR':
         regressor = svm.SVR()
     elif model_name == 'CART':
@@ -245,7 +245,7 @@ def my_car():
                 'car_price': 0.1}
     my_car_info = pd.DataFrame([car_info])
 
-    return my_car_info
+    return my_car_info, car_level
 
 
 
@@ -276,7 +276,7 @@ select
 from
 	second_car_sell
 where
-    car_class='suv'
+    car_class='{0}'
 and
     (risk_27_check = '0'
 or 
@@ -300,10 +300,10 @@ if __name__ == '__main__':
     # data.to_csv('/home/kdd/Desktop/car.csv', encoding='gbk')  # 写入csv
 
     # 获取用户车辆信息
-    my_car_info = my_car()
+    my_car_info, car_level = my_car()
 
     # 获取MySQL数据
-    data_case = conn_mysql(sql, col)
+    data_case = conn_mysql(sql.format(car_level), col)
     data_case = data_case[data_case.car_price > 10000]
     data = pd.concat([data_case, my_car_info], sort=False, ignore_index=True)
     # print(data.tail())
@@ -345,20 +345,5 @@ if __name__ == '__main__':
     # 建立机器学习模型
     model_select('GBR', X_train, X_test, X_valid, y_train, y_test, y_valid, my_car_info)  # 模型名称 ['SVR', 'CART', 'RF', 'GBR']
 
-
-
-    '''
-    # 添加车的档次属性
-    gb = df['car_price'].groupby(df['brand_name']).mean()
-    grade = pd.cut(gb, bins=[0, 8, 20, 50, 1000],
-                   labels=['低端 ', '中端', '高端', '豪华'])
-    car_grade = grade.to_dict()
-    df['grade'] = pd.Series(np.random.rand(len(df)))
-    for i in df.index:
-        # for k, v in car_grade.items():
-        if df['brand_name'][i] in car_grade.keys():
-            df.loc['grade'] = car_grade[df['brand_name'][i]]
-    print(df.head())
-    '''
 
 
