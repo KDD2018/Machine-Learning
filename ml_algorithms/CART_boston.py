@@ -4,7 +4,7 @@
 
 import pandas as pd
 from sklearn.datasets import load_boston
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, cross_val_score, KFold
 from sklearn.tree import DecisionTreeRegressor
 
 
@@ -21,11 +21,14 @@ target = boston.target
 
 
 # 划分数据集
-x_train, x_test, y_train, y_test = train_test_split(feature, target, test_size=0.3, shuffle=False)
+x_train, x_test, y_train, y_test = train_test_split(feature, target, test_size=0.3)
 
 
 # 建立CART回归树
-dct = DecisionTreeRegressor()
-dct.fit(x_train, y_train)
-score = dct.score(x_test, y_test)
-print('拟合优度为：%f'%score) 
+dct = DecisionTreeRegressor(max_depth=6)
+for i in range(500):
+    # dct.fit(x_train, y_train)
+    # score = dct.score(x_test, y_test)
+    kf = KFold(n_splits=5, shuffle=True)
+    score = cross_val_score(dct, feature, target, cv=kf)
+    print('第%d次拟合优度为:%f'%(i, score.mean())) 
