@@ -8,7 +8,7 @@ import numpy as np
 import seaborn as sns
 import pymysql
 from datetime import datetime
-from sklearn.preprocessing import LabelEncoder
+import tensorflow as tf
 from sklearn import svm
 from sklearn.model_selection import train_test_split, StratifiedKFold, cross_val_score
 from sklearn import tree
@@ -228,23 +228,6 @@ def model_select(model_name, X_train, X_test, X_valid, y_train, y_test, y_valid,
     your_car_price = math.expm1(log_price)
     print('\n**************您的爱车值这个价：%f**************' %your_car_price)
 
-    train_sizes, train_loss, test_loss = learning_curve(
-        RidgeCV(), feature, target, cv=10,
-        train_sizes=[0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85])
-
-    # # 平均每一轮所得到的平均方差(共5轮，分别为样本10%、25%、50%、75%、100%)
-    # train_loss_mean = np.mean(train_loss, axis=1)
-    # test_loss_mean = np.mean(test_loss, axis=1)
-    #
-    # plt.plot(train_sizes, train_loss_mean, 'o-', color="r",
-    #          label="Training")
-    # plt.plot(train_sizes, test_loss_mean, 'o-', color="g",
-    #          label="Cross-validation")
-    #
-    # plt.xlabel("Training examples")
-    # plt.ylabel("Loss")
-    # plt.legend(loc="best")
-    # plt.show()
 
 
 def my_car():
@@ -273,6 +256,10 @@ def my_car():
     my_car_info = pd.DataFrame([car_info])
 
     return my_car_info
+
+
+
+
 
 
 

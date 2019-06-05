@@ -9,9 +9,10 @@ import matplotlib.pyplot as plt
 import pymysql
 from datetime import datetime
 from sklearn.preprocessing import LabelEncoder
-from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV, ShuffleSplit, learning_curve
+from sklearn.model_selection import train_test_split, cross_val_score, ShuffleSplit, learning_curve
 from sklearn.metrics import mean_squared_error
 from sklearn.linear_model import Ridge, RidgeCV
+import tensorflow as tf
 
 
 def conn_mysql(sql):
@@ -83,9 +84,9 @@ def split_data(data):
     feature = pd.get_dummies(feature_X)  # 哑变量编码
     my_car_info = pd.DataFrame([feature.iloc[-1, :].copy()])
     feature = feature.iloc[:-1, :]
-    # X_train, X_test, y_train, y_test = train_test_split(feature, target, test_size=0.3)
+    X_train, X_test, y_train, y_test = train_test_split(feature, target, test_size=0.3)
 
-    return  my_car_info, feature, target
+    return  X_train, X_test, y_train, y_test, my_car_info, feature, target
 
 
 def model_select_and_predict(my_car_info, feature, target):
@@ -148,6 +149,48 @@ def my_car():
     return my_car_info
 
 
+def ridge(X_train, y_train, X_test, y_test, alpha):
+    '''
+    Tensorflow实现Ridge回归
+    :param X: 特征值
+    :param y: 目标值
+    :return: Ridge模型
+    '''
+    # 初始化参数
+    learning_rate = 0.01
+    training_epochs = 500
+
+    # 数据占位符
+    X = tf.placeholder(tf.float32)
+    y = tf.placeholder(tf.float32)
+
+    # 初始化权重和偏置
+    W = tf.Variable(tf.random_normal(shape=[655, 1]), name='Weight')
+    b = tf.Variable(np.random.randn(), name='Bias')
+
+    # 建立模型
+    y_hat = tf.add(tf.matmul(X, W), b)
+
+    # 损失函数
+    cost = tf.reduce_mean(tf.square(y_hat - y)) + tf.matmul([alpha,], tf.norm([W]))
+
+    # 梯度下降优化
+    train_op = tf.train.GradientDescentOptimizer(0.01).minimize(cost)
+
+    # 初始化变量
+    init_op = tf.global_variables_initializer()
+
+    with tf.Session() as sess:
+        sess.run(init_op)
+        for epoch in range(training_epochs):
+            sess.run(train_op, feed_dict={X: X_train, y: y_train})
+            if epoch % training_epochs == 0:
+                loss = sess.run(cost, feed_dict={X: X_test, y: y_test})
+                weights = sess.run(W)
+                bias = sess.run(b)
+
+    return weights, bias, loss
+
 # SQL查询语句
 sql_to_case = """
 select
@@ -208,24 +251,32 @@ if __name__ == '__main__':
     print('\n您的爱车类型属于：%s'%car_level[0][0])
     data = conn_mysql(sql_to_case.format(car_level[0][0]))
     data = pd.DataFrame(list(data), columns=col)
+    print(data.shape)
     data = pd.concat([data, my_car_info], sort=False, ignore_index=True)
 
     # 数据预处理
     data = preprocess(data)
-
+    print(data.shape)
     # 特征编码
     data = feature_encode(data)
 
     # 有效字段
     df = data.loc[:, col1].copy()
     df.index = range(len(df))
-
+    print(df.shape)
     # 划分数据集
-    my_car_info, feature, target = split_data(df)
+    X_train, X_test, y_train, y_test, my_car_info, feature, target = split_data(df)
+    print(X_train.shape)
+    print(X_test.shape)
 
     # 建立机器学习模型
     model_select_and_predict(my_car_info, feature, target)
 
+    # Tensorflow-Ridge model
+    # weights, bias, loss = ridge(X_train, y_train, X_test, y_test, alpha=0.1)
+    # print(weights)
+    # print(bias)
+    # print(loss)
 
 
 
