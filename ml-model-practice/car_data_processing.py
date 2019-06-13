@@ -259,10 +259,6 @@ def my_car():
 
 
 
-
-
-
-
 # np.set_printoptions(threshold=np.inf)
 pd.set_option('display.max_columns', None)
 
