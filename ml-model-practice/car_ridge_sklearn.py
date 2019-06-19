@@ -36,7 +36,7 @@ def my_car():
     car_info = {'brand_name': brand_name, 'car_system': car_system, 'car_model_name': car_model_name,
                 'register_time': register_time, 'meter_mile': meter_mile, 'gearbox': gearbox,
                 'displacement': displacement, 'sell_times': sell_times, 'annual_inspect': annual_inspect,
-                  'car_price': 0}
+                'car_price': 0}
     my_car_info = pd.DataFrame([car_info])
 
     return my_car_info
@@ -95,8 +95,7 @@ def feature_encode(data):
                                 labels=['0次', '1次', '2次', '3次', '4次', '5次及以上'])  # 过户次数
     # data.loc[:, 'annual_inspect'] = pd.cut(data.annual_inspect, bins=[-20, -10, -5, 0, 5, 20],
     #                                       labels=['10年以前', '5年以前', '过去5年', '未来5年', '未来5-10年'])
-    # data['compulsory_insurance'] = pd.cut(data.compulsory_insurance, bins=[-20, -10, -5, 0, 5, 20],
-    #                                 labels=['10年以前', '5年以前', '过去5年', '未来5年', '未来5-10年'])
+
     return data
 
 
@@ -145,7 +144,6 @@ def model_and_persist(feature, target, car_class):
     # print('\n**************平均绝对误差为：%f**************'%abe)
 
     job.dump(regressor, './model-param/{0}.joblib'.format(car_class))
-
 
 
 def prediction(my_car_info, car_class):
@@ -247,4 +245,4 @@ if __name__ == '__main__':
     price = prediction(my_car_info, car_class)
     end_time = datetime.now()
     sec = (end_time-start_time).seconds
-    print('\n运行时间：%f 秒'%sec)
+    print('\n运行时间：%.2f 秒'%sec)
