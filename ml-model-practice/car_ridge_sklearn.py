@@ -136,12 +136,12 @@ def model_and_persist(feature, target, car_class):
     print('\n最优超参数alpha：%f'%regressor.alpha_)  # 最优alpha
     print('\n**************拟合优度为：%f******************'%score)
 
-    # prediction = regressor.predict(X_test)
-    # mse = mean_squared_error(y_true=y_test, y_pred=prediction, multioutput='uniform_average')
-    # print('\n**************均方误差为：%f**************'%mse)
-    # error = prediction - y_test
-    # abe = sum(abs(error)) / len(y_test)
-    # print('\n**************平均绝对误差为：%f**************'%abe)
+    prediction = regressor.predict(X_test)
+    mse = mean_squared_error(y_true=y_test, y_pred=prediction, multioutput='uniform_average')
+    print('\n**************均方误差为：%f**************'%mse)
+    error = prediction - y_test
+    abe = sum(abs(error)) / len(y_test)
+    print('\n**************平均绝对误差为：%f**************'%abe)
 
     job.dump(regressor, './model-param/{0}.joblib'.format(car_class))
 
