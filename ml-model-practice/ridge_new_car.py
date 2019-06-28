@@ -5,19 +5,14 @@
 import math
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
 import pymysql
 from datetime import datetime
-from sklearn.preprocessing import LabelEncoder
-from sklearn.model_selection import train_test_split, cross_val_score, ShuffleSplit, learning_curve
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 from sklearn.linear_model import Ridge, RidgeCV
-import tensorflow as tf
-from scipy import stats
+
 
 pd.set_option('display.max_columns', None)
-
 
 
 def get_customer_car():
@@ -26,13 +21,13 @@ def get_customer_car():
     :return: 用户车辆表
     '''
 
-    brand_name = input('请输入品牌：') or '特斯拉'
-    car_system = input('请输入车系：') or 'Model S'
-    car_model_name = input('请输入车型：') or '2014款 Model S P85'
-    register_time = datetime.strptime(input('请输入上牌时间：') or '2014-11-01', '%Y-%m-%d')
-    meter_mile = float(input('请输入已行驶里程（公里）：') or 24200)
+    brand_name = input('请输入品牌：') or '奔驰'
+    car_system = input('请输入车系：') or '奔驰C级'
+    car_model_name = input('请输入车型：') or '2018款 C 200 L 运动版 成就特别版'
+    register_time = datetime.strptime(input('请输入上牌时间：') or '2018-08-01', '%Y-%m-%d')
+    meter_mile = float(input('请输入已行驶里程（公里）：') or 21900)
     sell_times = float(input('请输入过户次数：') or 0)
-    annual_inspect = datetime.strptime(input('请输入年检到期时间：') or '2020-11-01', '%Y-%m-%d')
+    annual_inspect = datetime.strptime(input('请输入年检到期时间：') or '2020-08-01', '%Y-%m-%d')
     customer_car_info = {'car_brand': brand_name, 'car_system': car_system, 'car_model': car_model_name,
                 'register_time': register_time, 'meter_mile': meter_mile, 'sell_times': sell_times,
                 'year_check_end_time': annual_inspect}
@@ -75,7 +70,6 @@ def preprocess(data):
     data.loc[:, 'meter_mile'] = data['meter_mile'] / 10000.0  # 换算成万公里
     data = data.loc[data.meter_mile < 40, :].copy()  # 过滤掉40万公里以上的案例
     data.loc[:, 'meter_mile'] = 1 - data['meter_mile'] / 60  # 转换成行驶里程成新率
-    # data.loc[:, 'vendor_guide_price'] = data['vendor_guide_price'] / 10000.0
     data.loc[:, 'price'] = data['price'] / 10000.0  # 换算成万元
 
     data.loc[:, 'year_check_end_time'] = data['year_check_end_time'].map(
@@ -91,7 +85,7 @@ def feature_encode(data, col1, col2):
     '''
     特征离散编码
     :param data: 数据框
-    :return: 特征编码后的数据框
+    :return: 离散化处理的数据框
     '''
     if data.loc[0, 'car_class'] != 'EV':
         data = data[col1]
@@ -100,7 +94,7 @@ def feature_encode(data, col1, col2):
                                                 labels=['5缸以内', '6缸', '8缸', '8缸以上'])
     else:
         data = data[col2]
-    print(data.tail())
+    # print(data.tail())
     data = data.dropna()
     data.index = range(len(data))
 
@@ -173,49 +167,6 @@ def model_select_and_predict(your_car_info, customer_car_df, X_train, X_test, y_
     print('\n**************您的爱车值这个价：%f**************' %your_car_price)
 
 
-def ridge(X_train, y_train, X_test, y_test, alpha):
-    '''
-    Tensorflow实现Ridge回归
-    :param X: 特征值
-    :param y: 目标值
-    :return: Ridge模型
-    '''
-    # 初始化参数
-    learning_rate = 0.01
-    training_epochs = 500
-
-    # 数据占位符
-    X = tf.placeholder(tf.float32)
-    y = tf.placeholder(tf.float32)
-
-    # 初始化权重和偏置
-    W = tf.Variable(tf.random_normal(shape=[X_train.shape[1], 1]), name='Weight')
-    b = tf.Variable(tf.random_normal(shape=[1,1]), name='Bias')
-
-    # 建立模型
-    y_hat = tf.add(tf.matmul(X, W), b)
-
-    # 损失函数
-    cost = tf.reduce_mean(tf.square(y_hat - y)) + alpha * tf.norm(W)
-
-    # 梯度下降优化
-    train_op = tf.train.GradientDescentOptimizer(0.01).minimize(cost)
-
-    # 初始化变量
-    init_op = tf.global_variables_initializer()
-
-    with tf.Session() as sess:
-        sess.run(init_op)
-        for epoch in range(training_epochs):
-            sess.run(train_op, feed_dict={X: X_train, y: y_train})
-            print('第epoch次训练，损失为：%f'%sess.run(cost))
-            if epoch % training_epochs == 0:
-                loss = sess.run(cost, feed_dict={X: X_test, y: y_test})
-                weights = sess.run(W)
-                bias = sess.run(b)
-
-    return weights, bias, loss
-
 # SQL查询语句
 sql_to_customer_carConfig = """
 SELECT
@@ -266,10 +217,7 @@ WHERE
     AND 
         n.car_class = '{1}'  
 """
-# AND
-# (s.risk_27_check = "0"
-# OR
-# s.risk_27_check is null)
+
 
 
 col = ['car_brand', 'car_system', 'car_model', 'cylinder_number', 'driving', 'gearbox_type', 'energy_type',
@@ -311,65 +259,22 @@ if __name__ == '__main__':
 
     # 4、将案例与客户车辆信息合并
     car_df = pd.concat([car_case_df, customer_car_df], sort=False, ignore_index=True)
-    # print(car_df.tail())
 
-    # 缺失值判断
-    # print(car_df.head())
-    # df = car_df[car_df['gearbox_type'].isnull()]
-    # print(df.shape)
-    # print(set(car_df['cylinder_number']))
-    # df.to_csv('/home/kdd/python/car/saloon_displacement.csv', encoding='gbk', chunksize=10000)
-    # print(data.tail())
-    # print(car_df.isnull().any())
 
     # 5、数据预处理
     data = preprocess(car_df)
-    # print(data.tail(5))
-    # print(set(data['risk_27_check']))
 
     # 6、特征编码
     data = feature_encode(data, col1, col2)
-    # print(data.tail(1))
+    print(data.tail(1))
 
-    # 统计分析
-    # cormat = data.corr()
-    # plt.rcParams['font.sans-serif'] = ['Microsoft Yahei']
-    # sns.distplot(data['preservation'])
-    # figure, ax = plt.subplots()
-    # sns.boxplot(data['maximum_power'], data['vendor_guide_price'])
-    # sns.scatterplot(data['maximum_power'], data['price'])
-    # stats.probplot(data['preservation'], plot=plt) # Q-Q图
-    # ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
-    # sns.heatmap(cormat,square=True)
-    # plt.show()
-
-    # 7、有效字段
-    # if data.loc[0, 'car_class'] == 'EV':
-    #     df = data[col2]
-    # else:
-    #     df = data[col1]
-    # df.index = range(len(df))
-    # print(df.tail())
-
-    # 8、划分数据集
+    # 7、划分数据集
     X_train, X_test, y_train, y_test, your_car_info, feature, target = split_data(data)
-    # print(X_train.head(1))
-    # print(X_test.shape)
 
-    # 9、建立机器学习模型
+    # 8、建立机器学习模型
     model_select_and_predict(your_car_info,  customer_car_df,X_train, X_test, y_train, y_test)
-
-    # Tensorflow-Ridge model
-    # weights, bias, loss = ridge(X_train, y_train, X_test, y_test, alpha=0.1)
-    # print(weights)
-    # print(bias)
-    # print(loss)
 
     end_time = datetime.now()
     sec = (end_time - start_time).seconds
     print('\n运行时间：%.2f 秒' % sec)
-
-
-
-
 
