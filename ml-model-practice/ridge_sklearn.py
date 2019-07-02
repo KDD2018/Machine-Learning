@@ -12,6 +12,8 @@ from sklearn.linear_model import RidgeCV
 import tensorflow as tf
 from sklearn.preprocessing import OneHotEncoder
 import joblib as job
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 
 pd.set_option('display.max_columns', None)
@@ -23,13 +25,13 @@ def get_customer_car():
     :return: 用户车辆表
     '''
 
-    brand_name = input('请输入品牌：') or '宝马'
-    car_system = input('请输入车系：') or '宝马X3'
-    car_model_name = input('请输入车型：') or '2018款 xDrive30i 尊享型 M运动套装 国V'
-    register_time = datetime.strptime(input('请输入上牌时间：') or '2019-01-01', '%Y-%m-%d')
-    meter_mile = float(input('请输入已行驶里程（公里）：') or 100000)
+    brand_name = input('请输入品牌：') or '雪铁龙'
+    car_system = input('请输入车系：') or '雪铁龙C3-XR'
+    car_model_name = input('请输入车型：') or '2015款 1.6THP 自动旗舰型'
+    register_time = datetime.strptime(input('请输入上牌时间：') or '2016-09-01', '%Y-%m-%d')
+    meter_mile = float(input('请输入已行驶里程（公里）：') or 45500)
     sell_times = float(input('请输入过户次数：') or 0)
-    annual_inspect = datetime.strptime(input('请输入年检到期时间：') or '2020-01-01', '%Y-%m-%d')
+    annual_inspect = datetime.strptime(input('请输入年检到期时间：') or '2020-09-01', '%Y-%m-%d')
     customer_car_info = {'car_brand': brand_name, 'car_system': car_system, 'car_model': car_model_name,
                 'register_time': register_time, 'meter_mile': meter_mile, 'sell_times': sell_times,
                 'year_check_end_time': annual_inspect}
@@ -92,6 +94,9 @@ def feature_encode(data, col1, col2):
         # 气缸离散化
         data.loc[:, 'cylinder_number'] = pd.cut(data.cylinder_number, bins=[0, 5, 6, 8, 16],
                                                 labels=['5缸以内', '6缸', '8缸', '8缸以上'])
+        # 排量离散化
+        data.loc[:, 'displacement'] = pd.cut(data.displacement, bins=[0, 1.0, 1.6, 2.5, 4, 6, 8],
+                                             labels=['0-1.0L', '1.0-1.6L', '1.6-2.5L', '2.5-4L', '4-6L', '6L以上'])
     else:
         data = data.loc[:, col2]
     data = data.dropna()
@@ -110,6 +115,9 @@ def feature_encode(data, col1, col2):
     # 年检到期
     data.loc[:, 'year_check_end_time'] = pd.cut(data.year_check_end_time, bins=[-20, -10, -5, 0, 5, 20],
                                                 labels=['10年以前', '5年以前', '过去5年', '未来5年', '未来5-10年'])
+    # 车款年份
+    data.loc[:, 'model_year'] = pd.cut(data.model_year, bins=[0, 2008, 2013, 2017, 2050],
+                                       labels=['2008款以前', '2009-2012款', '2013-2017款', '2018款及以后'])
     return data
 
 
@@ -232,13 +240,15 @@ def ridge(X_train, y_train, X_test, y_test, alpha):
 sql_to_customer_carConfig = """
 SELECT
 	cylinder_number,
+	displacement,
 	driving,
 	gearbox_type,
 	intake_form,
 	maximum_power,
 	voyage_range,
 	car_class,
-	vendor_guide_price
+	vendor_guide_price,
+	model_year
 FROM
 	new_car_information
 WHERE
@@ -255,6 +265,7 @@ SELECT
 	n.car_system,
 	n.car_model,
 	n.cylinder_number,
+	n.displacement,
 	n.driving,
 	n.gearbox_type,
 	n.intake_form,
@@ -262,6 +273,7 @@ SELECT
 	n.voyage_range,
 	n.car_class,
 	n.vendor_guide_price,
+	n.model_year,
 	s.register_time,
 	s.meter_mile,
 	s.sell_times,
@@ -271,53 +283,53 @@ FROM
 	second_car_sell s
 	INNER JOIN new_car_information n ON s.car_model_id = n.car_model_id 
 WHERE
-	s.car_class = '{0}'
-    AND 
-        n.car_class = '{1}'
+	n.car_class = '{0}'
+	AND 
+	    n.model_year >= '{1}'
     AND
         (risk_27_check = "0"
     OR
         risk_27_check is null)
 """
 
-sql_to_cars_config = """
+sql_to_brand_and_system = """
 select
 	car_brand,
-	car_system,
-	cylinder_number,
-	driving,
-	gearbox_type,
-    intake_form,
-    maximum_power
+	car_system
 from
 	new_car_information
 where
 	car_class = '{0}'
+	and
+	    model_year >= '{1}'
 order by id
 """
 
 
 
-# 非纯电动
-col_NEV = ['car_brand', 'car_system', 'cylinder_number', 'driving', 'gearbox_type', 'intake_form', 'maximum_power',
-           'register_time', 'meter_mile', 'sell_times', 'year_check_end_time', 'vendor_guide_price', 'price']
+# 非纯电动特征名称
+col_NEV = ['car_brand', 'car_system', 'cylinder_number', 'displacement', 'driving', 'gearbox_type', 'intake_form',
+           'maximum_power', 'register_time', 'meter_mile', 'sell_times', 'year_check_end_time', 'vendor_guide_price',
+           'model_year', 'price']
 
-# 纯电动
-col_EV = ['car_brand', 'car_system', 'driving', 'gearbox_type','maximum_power', 'voyage_range',
-        'register_time', 'meter_mile', 'sell_times', 'year_check_end_time', 'vendor_guide_price','price']
+# 纯电动特征名称
+col_EV = ['car_brand', 'car_system', 'driving', 'gearbox_type','maximum_power', 'voyage_range', 'register_time',
+          'meter_mile', 'sell_times', 'year_check_end_time', 'vendor_guide_price', 'model_year','price']
 
 
-# 分类型特征
-col_categories_NEV = ['car_brand', 'car_system', 'cylinder_number', 'driving', 'gearbox_type', 'intake_form',
-                      'maximum_power', 'register_time', 'sell_times', 'year_check_end_time']
+# 分类型特征名称
+col_categories_NEV = ['car_brand', 'car_system', 'cylinder_number', 'displacement', 'driving', 'gearbox_type',
+                      'intake_form', 'maximum_power', 'register_time', 'sell_times', 'year_check_end_time', 'model_year']
 col_categories_EV = ['car_brand', 'car_system', 'driving', 'gearbox_type', 'maximum_power', 'register_time',
-                     'sell_times', 'year_check_end_time']
+                     'sell_times', 'year_check_end_time', 'model_year']
 
 
+# 用于过滤太老旧的车
+model_year_dict = {'saloon': 2005, 'suv': 2007, 'mpv': 2006, 'minibus': 2007, 'supercar': 0, 'EV': 0}
 
-
-# 分类型特征的不同值
+# 分类型特征类别
 cylinder_number = ['8缸以上', '8缸', '6缸', '5缸以内']
+displacement = ['0-1.0L', '1.0-1.6L', '1.6-2.5L', '2.5-4L', '4-6L', '6L以上']
 driving = ['四驱', '后驱', '前驱']
 gearbox_type = ['DCT', 'CVT', 'AMT', 'AT自动', 'MT手动', '超跑变速箱', '单速变速箱']
 intake_form = ['自然吸气', '双增压', '涡轮增压', '机械增压']
@@ -325,11 +337,11 @@ maximum_power = ['100KW以内', '100-150KW', '150-200KW', '200-250KW', '250-500K
 register_time = ['1年以内', '1-3年', '3-5年', '5-8年', '8年以上']
 sell_times = ['0次', '1次', '2次', '3次', '4次', '5次及以上']
 year_check_end_time = ['10年以前', '5年以前', '过去5年', '未来5年', '未来5-10年']
+model_year = ['2008款以前', '2009-2012款', '2013-2017款', '2018款及以后']
 
-
-categories_NEV = [cylinder_number, driving, gearbox_type, intake_form, maximum_power, register_time, sell_times,
-                  year_check_end_time]
-categories_EV = [driving, gearbox_type, maximum_power, register_time, sell_times, year_check_end_time]
+categories_NEV = [cylinder_number, displacement, driving, gearbox_type, intake_form, maximum_power, register_time, sell_times,
+                  year_check_end_time, model_year]
+categories_EV = [driving, gearbox_type, maximum_power, register_time, sell_times, year_check_end_time, model_year]
 
 
 
@@ -345,7 +357,7 @@ if __name__ == '__main__':
     customer_carConfig = conn_mysql(sql_to_customer_carConfig.format(customer_car['car_brand'],
                                                                      customer_car['car_system'],
                                                                      customer_car['car_model']))
-
+    # print(customer_carConfig)
     if not customer_carConfig:
         print('\n客官，查无此车型')
     else:
@@ -361,7 +373,7 @@ if __name__ == '__main__':
             # print(customer_car_df)
 
             # 3、查询同类型车的品牌集、车系集
-            car_class_config = conn_mysql(sql_to_cars_config.format(car_class))
+            car_class_config = conn_mysql(sql_to_brand_and_system.format(car_class, model_year_dict[car_class]))
             # print(car_class_config)
             car_class_config = pd.DataFrame(car_class_config)
             car_brand = sorted(list(set(car_class_config['car_brand'].values)))  # 品牌集
@@ -382,7 +394,7 @@ if __name__ == '__main__':
 
             ##################################### 训练模型 #############################################
             # # 4、二手车案例信息
-            # car_case= conn_mysql(sql_to_CarConfig_CarCase.format(car_class, car_class))
+            # car_case= conn_mysql(sql_to_CarConfig_CarCase.format(car_class, model_year_dict[car_class]))
             # car_case_df = pd.DataFrame(car_case)  # 将同类车辆案例信息写入DataFrame
             #
             # # 5、案例数据处理
@@ -411,6 +423,8 @@ if __name__ == '__main__':
 
             # 预测客户汽车价格
             predict(my_car_df, customer_car_info)
+
+
 
 
     end_time = datetime.now()
