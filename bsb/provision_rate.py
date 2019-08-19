@@ -29,7 +29,7 @@ def process(df, period_dict):
         df_i.loc[:, '逾期周期'] = pd.cut(df[f'{i}月末逾期天数'], bins=[-1, 0, 30, 60,  90,  120, 180, 99999],
                                      labels=['C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6'])  # 逾期天数离散为逾期周期
         s = df_i.groupby(by=['逾期周期'])[f'{i}月末应收余额'].sum()  # 按周期对月度应收余额分组统计
-        # df_i.groupby(by=[f'{i}月末五级分类'])['逾期周期'].apply(lambda x: print(x))  # 五级分类怎么分？？？
+        # print(df_i.groupby(by=[f'{i}月末五级分类', '逾期周期']).size())  # 五级分类怎么分？？？
         period_month.insert(int(i)-1, column=f'{i}月末应收余额', value=s)
     # 插入逾期天数说明
     period = pd.DataFrame.from_dict(period_dict, orient='index', columns=['逾期天数'])
@@ -122,16 +122,16 @@ if __name__ == '__main__':
 
     # 2、预处理（缺失值和离散化）并将贷款明细透视为月度各周期透支额
     df_period_month = process(raw_data, period_dict=period_dict)
-    print(df_period_month)
+    # print(df_period_month)
 
 
     # 3、计算迁移率
     mobility_df = mobility(df_period_month)
-    print(mobility_df)
+    # print(mobility_df)
 
     # 4、计算净损失率
     net_loss_rate = net_loss_rate(mobility_df, 0.2, 0.21, period_dict)
-    print(net_loss_rate)
+    # print(net_loss_rate)
 
     # 5、计算拨备额和拨备率
     provision_df, provision = provision(net_loss_rate_df=net_loss_rate, df_period_month=df_period_month)

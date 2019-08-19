@@ -185,7 +185,7 @@ def modeling_and_persist(feature, target, customer_car_info):
     # abe =  sum(abe_true)/ len(y_test)
     # print('\n**************平均绝对误差为：%f**************'%abe)
 
-    job.dump(regressor, './model-param/{0}.joblib'.format(customer_car_info['car_class']))
+    job.dump(regressor, '../model-param/{0}.joblib'.format(customer_car_info['car_class']))
 
 
 def predict(my_car_df, customer_car_info):
@@ -194,7 +194,7 @@ def predict(my_car_df, customer_car_info):
     :param my_car_df: 待估车辆配置信息
     :return: 车价
     '''
-    regressor = job.load('./model-param/{0}.joblib'.format(customer_car_info['car_class']))
+    regressor = job.load('../model-param/{0}.joblib'.format(customer_car_info['car_class']))
     y_hat = regressor.predict(my_car_df)
     your_car_price = math.expm1(y_hat)
     print('\n**************您的爱车值这个价：%f万元**************' %your_car_price)
@@ -403,7 +403,7 @@ if __name__ == '__main__':
 
 
     end_time = datetime.now()
-    sec = (end_time - start_time).seconds
+    sec = (end_time - start_time).secondss
     print('\n运行时间：%.2f 秒' % sec)
 
 
