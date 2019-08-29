@@ -8,8 +8,7 @@ import numpy as np
 import pymysql
 from datetime import datetime
 from sklearn.model_selection import train_test_split, ShuffleSplit
-from sklearn.linear_model import RidgeCV
-import tensorflow as tf
+from sklearn.linear_model import RidgeCV, Ridge
 from sklearn.preprocessing import OneHotEncoder
 import joblib as job
 import matplotlib.pyplot as plt
@@ -26,9 +25,9 @@ def get_customer_car():
     :return: 用户车辆表
     '''
 
-    brand_name = input('请输入品牌：') or '雪铁龙'
-    car_system = input('请输入车系：') or '雪铁龙C3-XR'
-    car_model_name = input('请输入车型：') or '2015款 1.6THP 自动旗舰型'
+    brand_name = input('请输入品牌：') or '大众'
+    car_system = input('请输入车系：') or '途观'
+    car_model_name = input('请输入车型：') or '2016款 280TSI 自动两驱丝绸之路舒适版'
     register_time = datetime.strptime(input('请输入上牌时间：') or '2016-09-01', '%Y-%m-%d')
     meter_mile = float(input('请输入已行驶里程（公里）：') or 45500)
     # car_condition = input('请描述您的爱车车况（车况优秀, 车况良好, 车况一般, 车况较差, 车况极差）：') or '车况良好'
@@ -74,6 +73,7 @@ def preprocess(data):
 
     data.loc[:, 'meter_mile'] = data['meter_mile'] / 10000.0  # 换算成万公里
     data = data.loc[data.meter_mile < 55, :].copy()  # 过滤掉40万公里以上的案例
+    data = data.loc[data.sell_times <= 10, :].copy()  # 过滤掉过户次数10次以上的
     data.loc[:, 'meter_mile'] = 1 - data['meter_mile'] / 60  # 转换成行驶里程成新率
     data.loc[:, 'price'] = data['price'] / 10000.0  # 换算成万元
     data.loc[:, 'vendor_guide_price'] = data['vendor_guide_price'] / 10000.0  # 换算成万元
@@ -135,6 +135,20 @@ def split_data(data):
     return  X_train, X_test, y_train, y_test, feature, target
 
 
+def split_train_test(data, test_ratio):
+    '''
+    拆分数据
+    :param data: 源数据
+    :param test_ratio: 测试集比例
+    :return: 训练集和测试集
+    '''
+    shuffled_indices = np.random.permutation(len(data))    # 打乱序列
+    test_set_size = int(len(data) * test_ratio)    # 拆分比例
+    test_indices = shuffled_indices[:test_set_size]
+    train_indices = shuffled_indices[test_set_size:]
+    return data.iloc[train_indices], data.iloc[test_indices]
+
+
 def onehot_encode(data, categories):
     '''
     One-Hot编码
@@ -149,7 +163,7 @@ def onehot_encode(data, categories):
     return df
 
 
-def modeling_and_persist(feature, target, customer_car_info):
+def modeling_and_persist(X_train, X_test, y_train, y_test, customer_car_info):
     '''
     确立最优模型 
     :param X_train: 训练特征
@@ -161,23 +175,34 @@ def modeling_and_persist(feature, target, customer_car_info):
     print('\n**************开始训练Ridge模型**************')
     cv = ShuffleSplit(n_splits=10, test_size=0.25)
     regressor = RidgeCV(alphas=[0.01,0.1,1], cv=cv)
+    # regressor = Ridge(alpha=0.1)
 
-    # regressor = regressor.fit(X_train, y_train)
-    # score = regressor.score(X_test, y_test)
-    regressor = regressor.fit(feature, target)
-    score = regressor.score(feature, target)
+    regressor = regressor.fit(X_train, y_train)
+    score = regressor.score(X_test, y_test)
+    # regressor = regressor.fit(feature, target)
+    # score = regressor.score(feature, target)
     # print('\n最优超参数alpha：%f'%regressor.alpha_)  # 最优alpha
     print('\n**************拟合优度为：%.4f******************'%score)
 
-    # prediction = regressor.predict(X_test)
+    prediction = regressor.predict(X_test)
     # mse = mean_squared_error(y_true=y_test, y_pred=prediction, multioutput='uniform_average')
     # print('\n**************均方误差为：%f**************'%mse)
-    # error = prediction - y_test
-    # abe_true = abs(error).map(lambda x: math.expm1(x))
-    # abe =  sum(abe_true)/ len(y_test)
-    # print('\n**************平均绝对误差为：%f**************'%abe)
+    error = prediction - y_test
+    abe_true = abs(error).map(lambda x: math.expm1(x))
+    abe =  sum(abe_true)/ len(y_test)
+    print('\n**************平均绝对误差为：%f**************'%abe)
 
-    job.dump(regressor, '../model-param/{0}.joblib'.format(customer_car_info['car_class']))
+    # y_test_ = y_test.map(lambda x: math.expm1(x))
+    #
+    # sns.scatterplot(y_test_, abe_true)
+    # sns.scatterplot(y_test_, abe_true)
+    # plt.hlines(0, 0, 9)
+    # plt.xlabel('y_true')
+    # plt.ylabel('abe_true')
+    #
+    # plt.show()
+
+    # job.dump(regressor, '../model-param/{0}.joblib'.format(customer_car_info['car_class']))
 
 
 def predict(my_car_df, customer_car_info):
@@ -192,38 +217,19 @@ def predict(my_car_df, customer_car_info):
     print('\n**************您的爱车值这个价：%f万元**************' %your_car_price)
 
 
-def write2csv(data, batch_size, car_class):
+def write2csv(df, batch_size, car_class):
     '''
-    将数据框分批次写入多个csv
+    将数据框分批次写入多个csvs
     :param batch_size: 每批次写入样本数量
     '''
-    epoch = math.ceil(df.shape[0] / batch_size)
+    train_df, test_df = split_train_test(df, 0.2)
+    epoch = math.ceil(train_df.shape[0] / batch_size)
     print('\n**********************开始写入CSV文件*****************************')
+    test_df.to_csv('/home/kdd/python/car/%s_test.csv'%car_class, encoding='utf-8', chunksize=1000, index=False)
     for i in range(epoch):
-        data = df[i * 50000: (i + 1)*50000]
-        data.to_csv('/home/kdd/python/car/%s_%d.csv'%(car_class, i), encoding='utf-8', chunksize=10000)  # 写入csv
+        data = train_df[i * batch_size: (i + 1)*batch_size]
+        data.to_csv('/home/kdd/python/car/%s_%d.csv'%(car_class, i), encoding='utf-8', chunksize=10000, index=False)  # 写入csv
     print('\n**********************CSV文件写入完成*****************************')
-
-
-class RidgeTF():
-    def __init__(self, filelist):
-        self.filelist=filelist
-
-    def read_csv(self):
-        # 1、构造文件队列
-        file_queue = tf.train.string_input_producer(self.filelist)
-
-        # 2、 构造CSV阅读器，读取队列数据
-        reader = tf.TextLineReader()
-        key, value = reader.read(file_queue)
-
-        # 3、对每行内容进行解码，record_default:指定每一个样本的每一列的类型
-        records = [['None'], ['None'], ['None'], ['None'], ['None'], [0], [1.0], [0], [0]]
-        sample = tf.decode_csv(records=value, record_defaults=records)
-
-        # 4、批处理，读取多条数据
-        sample_batch = tf.train.batch(sample, batch_size=100, num_threads=1, capacity=100)
-        return sample_batch
 
 
 
@@ -363,8 +369,9 @@ if __name__ == '__main__':
             car_class_config = conn_mysql(sql_to_brand_and_system.format(car_class, model_year_dict[car_class]))
             # print(car_class_config)
             car_class_config = pd.DataFrame(car_class_config)
-            car_brand = sorted(list(set(car_class_config['car_brand'].values)))  # 品牌集
-            car_system = sorted(list(set(car_class_config['car_system'].values)))  # 车系集
+            car_brand = car_class_config['car_brand'].unique()  # 品牌集
+            car_system = car_class_config['car_system'].unique()  # 车系集
+
 
 
             # 4、确定同类车型的分类型特征及其特征类别
@@ -383,36 +390,36 @@ if __name__ == '__main__':
 
             # 5、二手车案例信息
             car_case= conn_mysql(sql_to_CarConfig_CarCase.format(car_class, model_year_dict[car_class]))
-            car_case_df = pd.DataFrame(car_case)  # 将同类车辆案例信息写入DataFrame
-            print(car_case_df.shape)
+            car_case_df = pd.DataFrame(car_case, columns=car_case[0].keys())  # 将同类车辆案例信息写入DataFrame
+            # print(car_case_df['sell_times'].unique())
+            # print(car_case_df.head(3))
+            # print(car_case[0].keys())
 
 
-            # 6、案例数据处理
+            # # 6、案例数据处理
             data = preprocess(car_case_df)  # 数据变换
             data = feature_encode(data, col_NEV, col_EV)  # 离散化处理
             df_category = data.loc[:, col_categ]  # 分类型
             df_numeric = data.loc[:, ['meter_mile', 'vendor_guide_price', 'price']]  # 数值型
-            print(df_category.isnull().any())
-            # print(df_numeric.index)
-
-            # 7、One-Hot编码
+            #
+            # # 7、One-Hot编码
             df_categories = onehot_encode(df_category, categories=categories)  # One-Hot编码
-
             df = pd.concat([df_categories, df_numeric], axis=1, ignore_index=True)
             print(df.shape)
 
-            # # 8、将案例数据写入TFRecord
-            # write2csv(data=df, batch_size=20000, car_class=car_class)
+            # 8、将案例数据写入CSV
+            write2csv(df=df, batch_size=50000, car_class=car_class)
 
 
 
             #################################### 训练模型 #############################################
             # 6、划分数据集
-            X_train, X_test, y_train, y_test, feature, target = split_data(df)
-            # print(feature.isnull().any())
+            # X_train, X_test, y_train, y_test, feature, target = split_data(df)
+            # print(X_train.shape, y_train.shape)
+            # print(X_test.shape, y_test.shape)
 
             # 7、建立机器学习模型
-            modeling_and_persist(feature, target, customer_car_info)
+            # modeling_and_persist(X_train, X_test, y_train, y_test, customer_car_info)
 
 
 
@@ -429,6 +436,21 @@ if __name__ == '__main__':
 
             # # 预测客户汽车价格
             # predict(my_car_df, customer_car_info)
+
+
+
+            # # data = data.loc[data.car_system == '哈弗H6']
+            # # 统计分析
+            # # cormat = data.corr()
+            # plt.rcParams['font.sans-serif'] = ['Microsoft Yahei']
+            # # sns.distplot(data['preservation'])
+            # # figure, ax = plt.subplots()
+            # sns.boxplot(data['vehicle_condition'], data['price'])
+            # sns.scatterplot(data['car_loss'], data['price'])
+            # # stats.probplot(data['preservation'], plot=plt) # Q-Q图
+            # # ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
+            # # sns.heatmap(cormat,square=True)
+            # plt.show()
 
 
     end_time = datetime.now()
