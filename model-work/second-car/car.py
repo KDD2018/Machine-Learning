@@ -135,7 +135,7 @@ def split_data(data):
     return  X_train, X_test, y_train, y_test, feature, target
 
 
-def split_train_test(data, test_ratio):
+def split_train_(data, test_ratio):
     '''
     拆分数据
     :param data: 源数据
@@ -146,6 +146,7 @@ def split_train_test(data, test_ratio):
     test_set_size = int(len(data) * test_ratio)    # 拆分比例
     test_indices = shuffled_indices[:test_set_size]
     train_indices = shuffled_indices[test_set_size:]
+
     return data.iloc[train_indices], data.iloc[test_indices]
 
 
@@ -222,16 +223,14 @@ def write2csv(df, batch_size, car_class):
     将数据框分批次写入多个csvs
     :param batch_size: 每批次写入样本数量
     '''
-    train_df, test_df = split_train_test(df, 0.2)
+    train_df, test_df = split_train_(df, 0.2)
     epoch = math.ceil(train_df.shape[0] / batch_size)
     print('\n**********************开始写入CSV文件*****************************')
-    test_df.to_csv('/home/kdd/python/car/%s_test.csv'%car_class, encoding='utf-8', chunksize=1000, index=False)
+    test_df.to_csv('/home/kdd/python/car/test/%s_test.csv'%car_class, encoding='utf-8', chunksize=1000, index=False)
     for i in range(epoch):
         data = train_df[i * batch_size: (i + 1)*batch_size]
         data.to_csv('/home/kdd/python/car/%s_%d.csv'%(car_class, i), encoding='utf-8', chunksize=10000, index=False)  # 写入csv
     print('\n**********************CSV文件写入完成*****************************')
-
-
 
 
 
@@ -340,6 +339,7 @@ categories_EV = [driving, gearbox_type, maximum_power, register_time, sell_times
 
 
 if __name__ == '__main__':
+
 
     # 1、获取用户车辆品牌、车系、车型、上牌时间、行驶里程、过户次数、年检到期时间等信息
     customer_car = get_customer_car()

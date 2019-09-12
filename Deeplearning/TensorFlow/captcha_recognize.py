@@ -55,8 +55,7 @@ def captcha_read():
     label_shape = tf.reshape(label, [4])
 
     # 5、批处理
-    image_batch, label_batch = tf.train.batch(
-        [iamge_shape, label_shape], batch_size=FLAGS.batch_size, num_threads=1, capacity=FLAGS.batch_size)
+    image_batch, label_batch = tf.train.batch([image_shape, label_shape], batch_size=FLAGS.batch_size, num_threads=1, capacity=FLAGS.batch_size)
     print(image_batch, label_batch)
 
     return image_batch, label_batch
@@ -74,7 +73,7 @@ def fc_model(image):
 
         # 2、转换验证码数据shape为[-1, 20*80*3], dtype为float32
         image_reshape = tf.cast(
-            tf.reshpe(image, [-1, 20 * 80 * 3]), tf.float32)
+            tf.reshape(image, [-1, 20 * 80 * 3]), tf.float32)
 
         # 3、全连接
         y_hat = tf.matmul(image_reshape, weights) + bias
@@ -100,9 +99,9 @@ def captchaRec():
         on_value=1.0)
 
     # 4、计算交叉熵损失
-    with tf.variabel_scope('loss'):
+    with tf.variable_scope('loss'):
         cross_loss = tf.nn.softmax_cross_entropy_with_logits(labels=tf.reshape(
-            y_true, [FLAGS.batch_size, FLAGS.label_number * FLAGS.letter_number]))
+            y_true, [FLAGS.batch_size, FLAGS.label_num * FLAGS.letter_num]))
         loss = tf.reduce_mean(cross_loss)
 
     # 5、梯度下降，优化损失

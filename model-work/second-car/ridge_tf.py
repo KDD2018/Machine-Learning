@@ -4,7 +4,7 @@
 
 import tensorflow as tf
 import os
-import numpy as np
+
 
 
 def weight_init(shape):
@@ -13,7 +13,7 @@ def weight_init(shape):
     :param shape: 权重的形状 
     :return: 初始化的权重值
     '''
-    weight = tf.Variable(tf.random_normal(shape=shape, mean=0.0, stddev=1.0), name='weight')
+    weight = tf.Variable(tf.random_normal(shape=shape, mean=0.0, stddev=1.0), name='Weight')
 
     return weight
 
@@ -24,7 +24,7 @@ def bias_init(shape):
     :param shape: 偏置的形状 
     :return: 初始化的偏置值
     '''
-    bias = tf.Variable(tf.constant(0.0, shape=shape))
+    bias = tf.Variable(tf.constant(0.0, shape=shape), name='Bias')
 
     return bias
 
@@ -50,55 +50,45 @@ def read_csv(filelist):
 
 
     # 4、批处理，读取多条数据
-    feature_batch, label_batch = tf.train.batch([data[0:-1], data[-1]], batch_size=10000, num_threads=1, capacity=10000)
+    feature_batch, label_batch = tf.train.batch([data[0:-1], data[-1]], batch_size=10000, num_threads=2, capacity=10000)
     return feature_batch, label_batch
 
 
-def ridge_regression(feature_batch, label_batch, lamda=0.5, learning_rate=0.01):
+def ridge_regression(lamda=0.5, learning_rate=0.01):
     '''
     Ridge Regression
-    :param feature_batch: 特征
-    :param label_batch: 标签
-    :param lamda: 
-    :param alpha: 
+    :param X: 特征
+    :param y: 标签
+    :param lamda: 正则化系数
+    :param alpha: 学习率
     :return: 
     '''
-    weight = weight_init(shape=[feature_batch.shape[1], 1])
-    bias = bias_init(shape=[1])
-    y_hat = tf.matmul(feature_batch, weight) + bias
-    loss = tf.reduce_mean(tf.square(label_batch-y_hat)) + lamda * tf.norm(weight)
-    train_op = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(loss=loss)
-    init_op = tf.global_variables_initializer()
+    with tf.name_scope('Input'):
+        X = tf.placeholder(shape=[None, 678], dtype=tf.float32, name='X')
+        y = tf.placeholder(shape=[None, 1], dtype=tf.float32, name='y')
 
-    with tf.Session() as sess:
-        sess.run(init_op)
-        for i in range(500):
-            sess.run(train_op)
-            if i % 100 == 0:
-                print(f'第{i}次训练的权重为：{sess.run(weight)}，偏置为：{sess.run(bias)}')
+    with tf.name_scope('Param_init'):
+        weight = weight_init(shape=[678, 1])
+        bias = bias_init(shape=[1])
 
+    with tf.name_scope('Model'):
+        y_hat = tf.matmul(X, weight) + bias
 
-def evaluate(weight, bias, feature_test, label_test):
-    '''
-    计算模型准确率
-    :param weight: 权重
-    :param bias: 偏置
-    :param feature_test: 测试特征
-    :param label_test: 测试标签
-    :return: 准确率
-    '''
-    prediction = tf.matmul(feature_test, weight) + bias
-    mse = tf.sqrt(tf.reduce_mean(tf.square(label_test-prediction)))
+    with tf.name_scope('Loss'):
+        loss = tf.reduce_mean(tf.square(y - y_hat)) + lamda * tf.norm(weight)
 
-    return mse
+    with tf.name_scope('Optimizer'):
+        train_op = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(loss=loss)
 
+    # with tf.name_scope('MSE'):
+    #     prediction = tf.matmul(x, weight) + bias
+    #     mse = tf.sqrt(tf.reduce_mean(tf.square(y - prediction)))
 
-
+    return train_op, loss
 
 
 features = ['car_brand', 'car_system', 'car_model', 'cylinder_number', 'driving', 'gearbox_type', 'intake_form', 'maximum_power',
  'voyage_range', 'car_class', 'vendor_guide_price', 'model_year', 'register_time', 'meter_mile', 'sell_times']
-
 
 
 
@@ -110,21 +100,35 @@ if __name__ == '__main__':
 
     # 2、构造CSV阅读器读取CSV
     feature_batch, label_batch = read_csv(file_list)
-    # print(feature_batch)
+    feature_test, label_test = read_csv([os.path.join('/home/kdd/python/car/test', 'suv_test.csv')])
+    # print(feature_test.shape[1])
 
-    # 3、开启会话
+    # 3、构建Ridge模型
+    train, loss = ridge_regression( lamda=0.5, learning_rate=0.001)
+
+    # 4、计算模型精度
+    # mse = evaluate(w, b, feature_test, label_test)
+
+    # 、开启会话
     with tf.Session() as sess:
+        # 初始化变量
+        sess.run(tf.global_variables_initializer())
+
         # 定义一个线程协调器
         coord = tf.train.Coordinator()
 
         # 开启读取文件的线程
         threads = tf.train.start_queue_runners(sess, coord=coord)
 
-        # 打印读取内容
-        try:
+        x_data, y_data = sess.run([feature_batch, label_batch])
 
-            feature, label = sess.run([feature_batch, label_batch])
-            ridge_regression(feature, label, lamda=0.5, learning_rate=0.0001)
+        # 循环训练
+        try:
+            for i in range(3000):
+
+                train = sess.run([train])
+                if i % 500 == 0:
+                    print(f'\n第{i}次训练的损失为：{sess.run(loss, feed_dict={X: x_data, y: y_data})}')
         except tf.errors.OutOfRangeError:
             print('Done reading')
         finally:
@@ -133,3 +137,4 @@ if __name__ == '__main__':
         # 回收子线程
         coord.request_stop()
         coord.join(threads)
+
