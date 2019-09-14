@@ -97,7 +97,8 @@ if __name__ == '__main__':
     file_name = os.listdir('/home/kdd/python/car')
     file_list = [os.path.join('/home/kdd/python/car', file) for file in file_name]
     # print(file_list)
-
+    
+    '''
     # 2、构造CSV阅读器读取CSV
     feature_batch, label_batch = read_csv(file_list)
     feature_test, label_test = read_csv([os.path.join('/home/kdd/python/car/test', 'suv_test.csv')])
@@ -108,11 +109,23 @@ if __name__ == '__main__':
 
     # 4、计算模型精度
     # mse = evaluate(w, b, feature_test, label_test)
-
+    '''
     # 、开启会话
     with tf.Session() as sess:
         # 初始化变量
         sess.run(tf.global_variables_initializer())
+       
+        # 2、构造CSV阅读器读取CSV
+        feature_batch, label_batch = read_csv(file_list)
+        feature_test, label_test = read_csv([os.path.join('/home/kdd/python/car/test', 'suv_test.csv')])
+        # print(feature_test.shape[1])
+
+        # 3、构建Ridge模型
+        train, loss = ridge_regression( lamda=0.5, learning_rate=0.001)
+
+        # 4、计算模型精度
+        # mse = evaluate(w, b, feature_test, label_test)
+
 
         # 定义一个线程协调器
         coord = tf.train.Coordinator()
