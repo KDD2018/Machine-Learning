@@ -5,7 +5,7 @@ import tensorflow as tf
 import os
 
 
-FLAGS = tf.app.flags.FLAGS # 用于命令行传递参数
+FLAGS = tf.app.flags.FLAGS  # 用于命令行传递参数
 tf.app.flags.DEFINE_string('BinData_dir', '/home/kdd/python/cifar-10-batches-bin', '二进制数据文件路径')
 tf.app.flags.DEFINE_string('TFRecord', '/home/kdd/python/tfrecords/cifar.tfrecords', '写入tfrecords文件的路径')
 
@@ -20,7 +20,7 @@ class BinReadTFrecords():
 		# 设定读取的图片的属性
 		self.height = 32
 		self.width = 32
-		self.channel = 3
+		self.channel = 3  # 彩色图片
 		self.label_bytes = 1
 		self.image_bytes = self.height * self.width * self.channel
 		self.bytes = self.image_bytes + self.label_bytes
