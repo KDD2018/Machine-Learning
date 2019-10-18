@@ -403,7 +403,7 @@ if __name__ == '__main__':
 
 
     end_time = datetime.now()
-    sec = (end_time - start_time).secondss
+    sec = (end_time - start_time).seconds
     print('\n运行时间：%.2f 秒' % sec)
 
 
