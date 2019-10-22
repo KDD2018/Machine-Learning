@@ -49,7 +49,7 @@ def read_csv(filelist):
     data = tf.decode_csv(value, record_defaults=records)
 
     # 4、批处理，读取多条数据
-    feature_batch, label_batch = tf.train.batch([data[0:-1], data[-1]], batch_size=1000, num_threads=1, capacity=1000)
+    feature_batch, label_batch = tf.train.batch([data[0:-1], data[-1]], batch_size=100, num_threads=1, capacity=1000)
     return feature_batch, label_batch
 
 
@@ -67,13 +67,9 @@ def ridge_regression(X):
     with tf.name_scope('Model'):
         y_hat = tf.matmul(X, weight) + bias
 
-
-
     # with tf.name_scope('MSE'):
     #     prediction = tf.matmul(x, weight) + bias
     #     mse = tf.sqrt(tf.reduce_mean(tf.square(y - prediction)))
-
-
 
     return y_hat, weight, bias
 
@@ -122,24 +118,23 @@ if __name__ == '__main__':
         # 开启读取文件的线程
         threads = tf.train.start_queue_runners(sess, coord=coord)
 
-        for i in range(5000):
-            sess.run([train_op])
-            if i % 500 == 0:
-                print(f'\n第{i}次训练的损失为：{sess.run(loss)}')
+        # for i in range(5000):
+        #     sess.run([train_op])
+        #     if i % 500 == 0:
+        #         print(f'\n第{i}次训练的损失为：{sess.run(loss)}')
 
 
-        # # 循环训练
-        # try:
-        #     for i in range(3000):
-        #
-        #         sess.run([train_op])
-        #         if i % 500 == 0:
-        #             print(f'\n第{i}次训练的损失为：{sess.run(loss)}')
-        # except tf.errors.OutOfRangeError:
-        #     print('Done reading')
-        # finally:
-        #     coord.request_stop()
+        # 循环训练
+        try:
+            for i in range(5000):
+                sess.run([train_op])
+                if i % 500 == 0:
+                    print(f'\n第{i}次训练的损失为：{sess.run(loss)}')
+        except tf.errors.OutOfRangeError:
+            print('Done reading -- epoch limit reached')
+        finally:
+            coord.request_stop()
 
         # 回收子线程
-        coord.request_stop()
+        # coord.request_stop()
         coord.join(threads)

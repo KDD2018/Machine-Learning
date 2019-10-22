@@ -102,7 +102,7 @@ def feature_encode(data, col1, col2):
         #                                      labels=['0-1.0L', '1.0-1.6L', '1.6-2.5L', '2.5-4L', '4-6L', '6L以上'])
     else:
         data = data.loc[:, col2]
-    data = data.dropna()
+    data.dropna(inplace=True)
     data.index = range(len(data))
 
 
@@ -124,7 +124,7 @@ def feature_encode(data, col1, col2):
     # 车况
     data.loc[:, 'vehicle_condition'] = pd.cut(data.car_loss, bins=[-1, 0, 8, 16, 24, 100],
                                               labels=['车况优秀', '车况良好', '车况一般', '车况较差', '车况极差'])
-
+    data.dropna(inplace=True)
 
     return data
 
