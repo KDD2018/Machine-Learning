@@ -4,6 +4,7 @@
 
 import tensorflow as tf
 import os
+import time
 
 
 
@@ -36,7 +37,7 @@ def read_csv(filelist):
     :return: 
     '''
     # 1、构造文件队列
-    file_queue = tf.train.string_input_producer(filelist)
+    file_queue = tf.train.string_input_producer(filelist, num_epochs=2)
 
     # 2、 构造CSV阅读器，读取队列数据
     reader = tf.TextLineReader(skip_header_lines=1)
@@ -114,27 +115,24 @@ if __name__ == '__main__':
 
         # 定义一个线程协调器
         coord = tf.train.Coordinator()
-
         # 开启读取文件的线程
         threads = tf.train.start_queue_runners(sess, coord=coord)
 
-        # for i in range(5000):
-        #     sess.run([train_op])
-        #     if i % 500 == 0:
-        #         print(f'\n第{i}次训练的损失为：{sess.run(loss)}')
-
-
         # 循环训练
         try:
-            for i in range(5000):
-                sess.run([train_op])
-                if i % 500 == 0:
-                    print(f'\n第{i}次训练的损失为：{sess.run(loss)}')
+            step = 0
+            while not coord.should_stop():
+                start_time = time.time()
+                _, loss_step = sess.run([train_op, loss])
+                duration = time.time() - start_time
+            if step % 500 == 0:
+                print(f'\n第{step}次训练的损失为：{loss_step}({duration} sec)')
+            step += 1
         except tf.errors.OutOfRangeError:
             print('Done reading -- epoch limit reached')
         finally:
             coord.request_stop()
-
+            coord.join(threads)
         # 回收子线程
         # coord.request_stop()
-        coord.join(threads)
+        # coord.join(threads)

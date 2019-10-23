@@ -17,6 +17,7 @@ import seaborn as sns
 
 
 pd.set_option('display.max_columns', None)
+pd.set_option('display.max_row', None)
 
 
 def get_customer_car():
@@ -71,6 +72,10 @@ def preprocess(data):
     :return: 处理后的数据框
     '''
 
+    if data.loc[0, 'car_class'] != 'EV':
+        del data['voyage_range']
+    data.dropna(inplace=True)
+    data.index = range(len(data))
     data.loc[:, 'meter_mile'] = data['meter_mile'] / 10000.0  # 换算成万公里
     data = data.loc[data.meter_mile < 55, :].copy()  # 过滤掉40万公里以上的案例
     data.loc[:, 'meter_mile'] = 1 - data['meter_mile'] / 60  # 转换成行驶里程成新率
@@ -122,8 +127,8 @@ def feature_encode(data, col1, col2):
     data.loc[:, 'model_year'] = pd.cut(data.model_year, bins=[0, 2008, 2013, 2017, 2050],
                                        labels=['2008款以前', '2009-2012款', '2013-2017款', '2018款及以后'])
     # 车况
-    data.loc[:, 'vehicle_condition'] = pd.cut(data.car_loss, bins=[-1, 0, 8, 16, 24, 100],
-                                              labels=['车况优秀', '车况良好', '车况一般', '车况较差', '车况极差'])
+    # data.loc[:, 'vehicle_condition'] = pd.cut(data.car_loss, bins=[-1, 0, 8, 16, 24, 100],
+    #                                           labels=['车况优秀', '车况良好', '车况一般', '车况较差', '车况极差'])
     data.dropna(inplace=True)
 
     return data
@@ -138,9 +143,9 @@ def split_data(data):
 
     target = data.iloc[:,-1]  # 目标值
     feature = data.iloc[:,:-1]  # 特征值
-    X_train, X_test, y_train, y_test = train_test_split(feature, target, test_size=0.3)
+    # X_train, X_test, y_train, y_test = train_test_split(feature, target, test_size=0.3)
 
-    return  X_train, X_test, y_train, y_test, feature, target
+    return  feature, target
 
 
 def onehot_encode(data, categories):
@@ -239,12 +244,12 @@ SELECT
 	s.register_time,
 	s.meter_mile,
 	s.sell_times,
-	c.car_loss,
+	# c.car_loss,
 	s.price
 FROM
 	second_car_sell s
 	INNER JOIN new_car_information n ON s.car_model_id = n.car_model_id
-	INNER JOIN second_car_check2 c ON c.second_car_sell_id = s.id
+	# INNER JOIN second_car_check2 c ON c.second_car_sell_id = s.id
 WHERE
 	n.car_class = '{0}'
 	AND 
@@ -269,18 +274,18 @@ order by id
 # 非纯电动特征名称
 col_NEV = ['car_brand', 'car_system', 'cylinder_number', 'driving', 'gearbox_type', 'intake_form',
            'maximum_power', 'register_time', 'meter_mile', 'sell_times', 'vendor_guide_price',
-           'model_year', 'car_loss', 'price']
+           'model_year', 'price']
 
 # 纯电动特征名称
 col_EV = ['car_brand', 'car_system', 'driving', 'gearbox_type','maximum_power', 'voyage_range', 'register_time',
-          'meter_mile', 'sell_times', 'vendor_guide_price', 'model_year', 'car_loss', 'price']
+          'meter_mile', 'sell_times', 'vendor_guide_price', 'model_year', 'price']
 
 
 # 分类型特征名称
 col_categories_NEV = ['car_brand', 'car_system', 'cylinder_number', 'driving', 'gearbox_type',
-                      'intake_form', 'maximum_power', 'register_time', 'sell_times', 'model_year', 'vehicle_condition']
+                      'intake_form', 'maximum_power', 'register_time', 'sell_times', 'model_year']
 col_categories_EV = ['car_brand', 'car_system', 'driving', 'gearbox_type', 'maximum_power', 'register_time',
-                     'sell_times', 'model_year', 'vehicle_condition']
+                     'sell_times', 'model_year']
 
 
 # 用于过滤太老旧的车
@@ -302,8 +307,8 @@ vehicle_condition = ['车况优秀', '车况良好', '车况一般', '车况较�
 
 
 categories_NEV = [cylinder_number, driving, gearbox_type, intake_form, maximum_power, register_time,
-                  sell_times, model_year, vehicle_condition]
-categories_EV = [driving, gearbox_type, maximum_power, register_time, sell_times, model_year, vehicle_condition]
+                  sell_times, model_year]
+categories_EV = [driving, gearbox_type, maximum_power, register_time, sell_times, model_year]
 
 
 
@@ -342,7 +347,7 @@ if __name__ == '__main__':
             car_system = sorted(list(set(car_class_config['car_system'].values)))  # 车系集
 
 
-            if car_class == 'EV':
+            if car_class == 'EV': # 纯电动
                 categories_EV.insert(0, car_brand)
                 categories_EV.insert(1, car_system)
                 categories = categories_EV
@@ -356,9 +361,9 @@ if __name__ == '__main__':
 
             ##################################### 训练模型 #############################################
             # 4、二手车案例信息
-            car_case= conn_mysql(sql_to_CarConfig_CarCase.format(car_class, model_year_dict[car_class]))
+            car_case = conn_mysql(sql_to_CarConfig_CarCase.format(car_class, model_year_dict[car_class]))
             car_case_df = pd.DataFrame(car_case)  # 将同类车辆案例信息写入DataFrame
-
+            print(car_case_df.shape)
 
             # 5、案例数据处理
             data = preprocess(car_case_df)  # 数据变换
@@ -379,11 +384,12 @@ if __name__ == '__main__':
             # plt.show()
 
             df_categories = onehot_encode(data[col_categ], categories=categories)  # One-Hot编码
+            # print(df_categories.isnull().any())
             df = pd.concat([df_categories, data[['meter_mile', 'vendor_guide_price', 'price']]], axis=1)
             print(df.shape)
 
             # 6、划分数据集
-            X_train, X_test, y_train, y_test, feature, target = split_data(df)
+            feature, target = split_data(df)
 
             # 7、建立机器学习模型
             modeling_and_persist(feature, target, customer_car_info)
