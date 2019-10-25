@@ -179,7 +179,7 @@ def modeling_and_persist(feature, target, customer_car_info):
     # score = regressor.score(X_test, y_test)
     regressor = regressor.fit(feature, target)
     score = regressor.score(feature, target)
-    # print('\n最优超参数alpha：%f'%regressor.alpha_)  # 最优alpha
+    print('\n最优超参数alpha：%f'%regressor.alpha_)  # 最优alpha
     print('\n**************拟合优度为：%.4f******************'%score)
 
     # prediction = regressor.predict(X_test)
@@ -385,11 +385,11 @@ if __name__ == '__main__':
 
             df_categories = onehot_encode(data[col_categ], categories=categories)  # One-Hot编码
             # print(df_categories.isnull().any())
-            df = pd.concat([df_categories, data[['meter_mile', 'vendor_guide_price', 'price']]], axis=1)
-            print(df.shape)
+            feature = pd.concat([df_categories, data[['meter_mile', 'vendor_guide_price']]], axis=1)
+            target = data['price']
 
             # 6、划分数据集
-            feature, target = split_data(df)
+            # feature, target = split_data(df)
 
             # 7、建立机器学习模型
             modeling_and_persist(feature, target, customer_car_info)
