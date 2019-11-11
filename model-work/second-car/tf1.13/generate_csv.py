@@ -187,7 +187,7 @@ if __name__ == '__main__':
     df_disrete = process.feature_encode(df_preprocessed, col_NEV, col_EV) # 离散化
     df_categ = process.onehot_encode(df_disrete[col_categ], categories)  # onehot编码
     df = pd.concat([df_categ, df_preprocessed[['meter_mile', 'vendor_guide_price', 'price']]], axis=1)
-
+    print(df.shape)
 
     # 3、将处理后的数据写入CSV文件
     write2csv(df=df, batch_size=50000, car_class=car_class)

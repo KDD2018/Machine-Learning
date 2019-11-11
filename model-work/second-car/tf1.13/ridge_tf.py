@@ -75,7 +75,7 @@ def read_csv(path, capacity, epochs, batch_size=200, threads=1, min_after_dequeu
     key, value = reader.read(file_queue)
 
     # 3、对每行内容进行解码，record_default:指定每一个样本的每一列的类型
-    records = [[0.0] for _ in range(698)]
+    records = [[0.0] for _ in range(717)]
     data = tf.decode_csv(value, record_defaults=records)
 
     # 4、批处理，读取多条数据
@@ -92,7 +92,7 @@ def ridge_regression(X):
     :return: y_hat 拟合值
     '''
 
-    weight = weight_init(shape=[697, 1])
+    weight = weight_init(shape=[716, 1])
     bias = bias_init(shape=[1])
     y_hat = tf.add(tf.matmul(X, weight), bias, name='y_hat')
 
@@ -179,21 +179,22 @@ def train_and_save_model(data_path, model_path, alpha=0.01, learning_rate=0.01):
                 # 将每次训练产生的协议缓冲区摘要写入events文件
                 summary = sess.run(merged)
                 file_writer.add_summary(summary, step)
-                if step % 500 == 0:
+                if step % 200 == 0:
                     print(f'\n第{step}次训练的损失为：{loss_step:.4f}, 耗时{duration:.4f} sec, 拟合优度为{sess.run(R2):.4f}')
-                # if step % 500 == 0:
+
                     saver.save(sess, model_path, global_step=step)
                 step += 1
             # saver.save(sess, FLAGS.model_dir, global_step=step)
         except tf.errors.OutOfRangeError:
             print(f'\nDone training for {step} steps.')
+            # print(e)
         finally:
             coord.request_stop()
         file_writer.close()
         coord.join(threads)
 
 # car_class = func()
-model_saving_dir = '../model-param/suv/suv.ckpt'
+model_saving_dir = '../../model-param/suv/suv.ckpt'
 
 if __name__ == '__main__':
 

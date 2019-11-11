@@ -13,7 +13,6 @@ class Processing():
     '''
     预处理、特征工程
     '''
-
     def preprocess(self, data):
         '''
         数据预处理
@@ -142,6 +141,6 @@ class Processing():
         enc = OneHotEncoder(sparse=False, categories=categ)
         data_encode = enc.fit_transform(data)
         df = pd.DataFrame(data_encode, index=data.index, columns=enc.get_feature_names())
-
+        print(enc.get_feature_names())
         return df
 
