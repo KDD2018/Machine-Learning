@@ -27,7 +27,7 @@ def connect_mongo(projection):
     :return: data
     '''
     client = pymongo.MongoClient(
-        'mongodb://spider:spider123@192.168.0.5:27017/')
+        'mongodb://***')
     db = client['second_hand_car_autohome']
     collection = db['全国']
     data = pd.DataFrame(list(collection.find({}, projection)))

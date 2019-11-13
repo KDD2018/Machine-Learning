@@ -7,6 +7,7 @@ from selectMySQL import SelectMySQL
 import pandas as pd
 import tensorflow as tf
 from processing import Processing
+import numpy as np
 
 
 
@@ -20,7 +21,7 @@ def get_car_info_from_customer():
     car_system = input('请输入车系：') or '途观'
     car_model_name = input('请输入车型：') or '2016款 280TSI 自动两驱丝绸之路舒适版'
     register_time = datetime.strptime(input('请输入上牌时间：') or '2016-09-01', '%Y-%m-%d')
-    meter_mile = float(input('请输入已行驶里程（万公里）：') or 30)
+    meter_mile = float(input('请输入已行驶里程（公里）：') or 300000)
     sell_times = float(input('请输入过户次数：') or 0)
     car_info_from_customer = {'car_brand': brand_name, 'car_system': car_system, 'car_model': car_model_name,
                      'register_time': register_time, 'meter_mile': meter_mile, 'sell_times': sell_times}
@@ -37,14 +38,14 @@ def customer_car_df(sql_to_customer_carConfig, sql_to_brand, sql_to_system):
     # 获取客户输入车辆信息
     car_info_from_customer = get_car_info_from_customer()
 
-    if car_info_from_customer['meter_mile'] > 55:
+    if car_info_from_customer['meter_mile'] > 550000:
         print('\n客观，您的爱车接近报废啦。。。。。')
     else:
         # 查询客户车辆参数配置、类型
-        select = SelectMySQL(host='192.168.0.3',
-                             user='clean',
-                             passwd='Zlpg1234!',
-                             db='valuation_web')
+        select = SelectMySQL(host='***',
+                             user='***',
+                             passwd='***',
+                             db='***')
         # 根据车辆品牌、车系、车型获取用户车辆参数配置信息
         customer_carConfig = select.get_df(sql_to_customer_carConfig.format(car_info_from_customer['car_brand'],
                                                                             car_info_from_customer['car_system'],
@@ -106,8 +107,17 @@ def predict(X, weight, bias):
     :param bias: 学得偏置
     :return: 预测值
     '''
-    return tf.matmul(X, weight) + bias
+    cp = np.dot(X, weight) + bias
+    price = np.expm1(cp[0][0])
 
+    return price
+
+
+# def score(y, y_hat):
+#     sse = sum((y - y_hat)**2)
+#     sst = sum((y - np.average(y_hat, axis=0))**2)
+#     r = 1- sse / sst
+#     return r
 
 sql_to_customer_carConfig = """
 SELECT
@@ -167,6 +177,7 @@ if __name__ == '__main__':
 
     # 2、根据车辆类型加载模型模型
     weight, bias = load_model(car_class)
+    print(weight.shape)
 
     # 3、对用户车信息进行处理
     process = Processing()
@@ -175,9 +186,26 @@ if __name__ == '__main__':
     df_disrete = process.feature_encode(df_preprocessed, col_NEV, col_EV)  # 离散化
     df_categ = process.onehot_encode(df_disrete[col_categ], categories)  # onehot编码
     df = pd.concat([df_categ, df_preprocessed[['meter_mile', 'vendor_guide_price']]], axis=1)
-    df = tf.cast(df, dtype=tf.float32)
-    print(df.shape)
+    df = df.astype('float32')
 
     # 4、预测用户车辆价值
+
     customer_car_price = predict(df, weight, bias)
     print(f'\n客官，您的爱车值这个价：{customer_car_price}')
+
+    '''
+    # 测试计算拟合优度
+    data = pd.read_csv('/home/kdd/python/suv_7.csv')
+    feature = data.iloc[:, :-1]
+    target = data.iloc[:,-1]
+    print(feature.shape)
+    print(target.shape)
+
+    pre = np.dot(feature, weight) + bias
+    pre = pd.Series(pre[:,0])
+    print(pre.shape)
+    score = score(target, pre)
+    print(score)
+    '''
+
+

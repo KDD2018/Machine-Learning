@@ -19,7 +19,10 @@ class Processing():
         :param data: 要处理的数据框
         :return: 处理后的数据框
         '''
-
+        if data.loc[0, 'car_class'] != 'EV':
+            del data['voyage_range']
+        data.dropna(inplace=True)
+        data.index = range(len(data))
         data.loc[:, 'meter_mile'] = data['meter_mile'] / 10000.0  # 换算成万公里
         data.loc[:, 'price'] = data['price'] / 10000.0  # 换算成万元
         data.loc[:, 'vendor_guide_price'] = data['vendor_guide_price'] / 10000.0  # 换算成万元
@@ -47,8 +50,8 @@ class Processing():
                                                     labels=['2缸', '3缸', '4缸','5缸', '6缸', '8缸', '10缸以上'])
         else:  # 纯电动
             df = data.loc[:, col2]
-        df = df.dropna()
-        df.reindex = range(len(df))
+        # df = df.dropna()
+        # df.reindex = range(len(df))
 
         # 最大功率离散化
         df.loc[:, 'maximum_power'] = pd.cut(df.maximum_power, bins=[ 0, 100, 150, 200, 250, 500, 1000],
@@ -141,6 +144,6 @@ class Processing():
         enc = OneHotEncoder(sparse=False, categories=categ)
         data_encode = enc.fit_transform(data)
         df = pd.DataFrame(data_encode, index=data.index, columns=enc.get_feature_names())
-        print(enc.get_feature_names())
+        # print(enc.get_feature_names())
         return df
 

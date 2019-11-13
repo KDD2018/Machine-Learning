@@ -41,10 +41,10 @@ def conn_mysql(sql):
     col 字段名称
     :return: data
     '''
-    conn = pymysql.Connect(host='192.168.0.3',
-                           user='clean',
-                           passwd='Zlpg1234!',
-                           db='valuation_web',
+    conn = pymysql.Connect(host='***',
+                           user='***',
+                           passwd='***!',
+                           db='***',
                            port=3306,
                            charset='utf8',
                            cursorclass=pymysql.cursors.SSDictCursor,

@@ -17,10 +17,10 @@ pd.set_option('display.max_columns', None)
 
 def connect(sql):
     conn = pymysql.Connect(
-        host='192.168.0.3',
-        user='pnggu',
-        passwd='Pinggu123',
-        db='model',
+        host='***',
+        user='***',
+        passwd='***',
+        db='***',
         port=3306,
         charset='utf8')
     cur = conn.cursor()
