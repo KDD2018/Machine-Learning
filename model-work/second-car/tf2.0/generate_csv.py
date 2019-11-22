@@ -10,8 +10,6 @@ from processing import Processing
 
 
 
-pd.set_option('display.max_columns', None)
-
 class GenerateCSV():
     '''
     读取MySQL数据，处理后写入CSV文件
@@ -37,10 +35,10 @@ class GenerateCSV():
     def get_brands_and_systems(self, sql_to_customer_carConfig, sql_to_brand, sql_to_system):
         '''
         获取车辆品牌集和车系集
-        :param sql_to_customer_carConfig: 
-        :param sql_to_brand: 
-        :param sql_to_system: 
-        :return: 
+        :param sql_to_customer_carConfig: 查询用户车辆配置
+        :param sql_to_brand: 查询品牌集合
+        :param sql_to_system: 查询车系集合
+        :return: 车辆类型、品牌集、车系集
         '''
         #  获取客户输入车辆信息
         car_info_from_customer = self.get_car_info_from_customer()
@@ -73,16 +71,18 @@ class GenerateCSV():
             return car_class, brands, systems
 
 
-    def get_car_case(self, car_class, sql_to_case_num, sql_to_CarConfig_CarCase,brands, systems, batch_size=50000):
+    def get_car_case(self, car_class, sql_to_case_num, sql_to_CarConfig_CarCase, brands, systems, batch_size=50000):
         '''
         获取车辆案例信息
-        :param sql_to_customer_carConfig: 查询用户车辆配置信息的SQL
-        :param sql_to_brand: 查询品牌集
-        :param sql_to_system: 查询车系集
-        :param sql_to_CarConfig_CarCase: 查询车辆案例信息及车辆配置信息的SQL   
+        :param car_class: 车辆类型  
+        :param sql_to_case_num: 查询案例数量
+        :param sql_to_CarConfig_CarCase: 查询车辆案例信息及车辆配置信息的SQL
+        :param brands: 品牌集
+        :param systems: 车系集 
+        :param batch_size: 每页案例数量
         :return: 查询案例结果
         '''
-        select = SelectMySQL(host='192.168.0.3', user='clean', passwd='Zlpg1234!', db='valuation_web')
+        select = SelectMySQL(host='***', user='***', passwd='***', db='***')
         # 查询样本数量
         num_case_result = select.get_df(sql_to_case_num.format(car_class, model_year_dict[car_class]))
         len_case = num_case_result[0].get('count(*)')
@@ -90,12 +90,12 @@ class GenerateCSV():
         epochs = math.ceil(len_case / batch_size)
 
         cols_num_list = []
-        test = pd.DataFrame()
+        test = valid = pd.DataFrame()
         for i in range(epochs):
             # 获取案例信息
             print(f'\n开始获取并处理第{i}页案例信息......')
-            car_case = select.get_df(sql_to_CarConfig_CarCase.format(car_class, model_year_dict[car_class], i, batch_size))
-
+            car_case = select.get_df(sql_to_CarConfig_CarCase.format(car_class, model_year_dict[car_class],
+                                                                     i, batch_size))
             # 将同类车辆案例信息写入DataFrame
             car_case_df = pd.DataFrame(car_case, columns=car_case[0].keys())
             # 处理数据
@@ -113,30 +113,34 @@ class GenerateCSV():
             df = pd.concat([df_categ, df_preprocessed[['meter_mile', 'vendor_guide_price', 'price']]], axis=1)
             cols_num_list.append(len(df.columns))
             # 拆分数据
-            train_data, test_data = process.split_train_test(df, test_ratio=0.25)
-            test = test.append(test_data, ignore_index=True)
+            train_data_all, test_data = process.split_train_test(df, test_ratio=0.2)
+            train_data, valid_data = process.split_train_test(train_data_all, test_ratio=0.25)
+            test = test.append(test_data, ignore_index=True)  # 测试集
+            valid = valid.append(valid_data, ignore_index=True)  # 验证集
             print(f'\n将第{i}页案例信息写入csv......')
             train_data.to_csv(f'/home/kdd/python/car/train/{car_class}/{car_class}_{i}.csv', encoding='utf-8',
                               chunksize=10000, index=False)  # 写入csv
         test.to_csv(f'/home/kdd/python/car/test/{car_class}_test/{car_class}.csv', encoding='utf-8', index=False)
+        valid.to_csv(f'/home/kdd/python/car/valid/{car_class}_valid/{car_class}.csv', encoding='utf-8', index=False)
         print('\n**********************CSV文件写入完成*****************************')
-        len_train_data = len_case - len(test)
 
-        return cols_num_list, len_train_data
+        len_train_data = len_case - len(test) - len(valid)
+
+        return cols_num_list, len_train_data, len(test), len(valid)
 
 
     def run(self):
 
-        num_cols=len_train_data= None
+        num_cols = len_train = len_test = len_valid = None
         # 1、根据用户输入的车辆信息获取同一类型的车辆案例信息
         car_class, brands, systems = self.get_brands_and_systems(sql_to_customer_carConfig, sql_to_brand, sql_to_system)
 
         if car_class:
             # 2、对案例信息进行处理并写入csv
-            num_cols, len_train_data = self.get_car_case(car_class, sql_to_case_num,
+            num_cols_list, len_train, len_test, len_valid = self.get_car_case(car_class, sql_to_case_num,
                                                          sql_to_CarConfig_CarCase, brands, systems)
-
-        return num_cols, car_class, len_train_data
+            num_cols = num_cols_list[0]
+        return num_cols, car_class, len_train, len_test, len_valid
 
 
 
@@ -238,8 +242,8 @@ model_year_dict = {'saloon': 2005, 'suv': 2007, 'mpv': 2006, 'minibus': 2007, 's
 
 
 
-# if __name__ == '__main__':
-#     generate = GenerateCSV()
-#     num_cols_list = generate.run()
-#     print(num_cols_list)
+if __name__ == '__main__':
+    generate = GenerateCSV()
+    num_cols, car_class, len_train, len_test, len_valid = generate.run()
+    print(num_cols)
 

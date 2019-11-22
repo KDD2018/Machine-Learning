@@ -8,12 +8,6 @@ import time
 from generate_csv import GenerateCSV
 
 
-FLAGS = tf.app.flags.FLAGS
-# tf.app.flags.DEFINE_string('train_data_dir', '/home/kdd/python/car/suv', 'path of train_data')
-tf.app.flags.DEFINE_integer('batch_size', 64, 'number of samples for one training ')
-# tf.app.flags.DEFINE_string('model_dir', '../model-param/ridge.ckpt', 'path of model file')
-
-
 
 def get_file_list(path):
     '''
@@ -45,7 +39,7 @@ def bias_init(shape):
     return tf.Variable(tf.constant(0.0, shape=shape), dtype=tf.float32, name='bias')
 
 
-def read_csv(path, epochs, num_cols, capacity=1000, batch_size=64, threads=1, min_after_dequeue=100):
+def read_csv(path, num_cols, batch_size=10, threads=1, capacity=500, min_after_dequeue=200):
     '''
     批获取csv数据
     :param filelist: 文件列表 
@@ -55,7 +49,7 @@ def read_csv(path, epochs, num_cols, capacity=1000, batch_size=64, threads=1, mi
     file_list = get_file_list(path)
 
     # 1、构造文件队列
-    file_queue = tf.train.string_input_producer(file_list, num_epochs=epochs)
+    file_queue = tf.train.string_input_producer(file_list, num_epochs=10)
 
     # 2、 构造CSV阅读器，读取队列数据
     reader = tf.TextLineReader(skip_header_lines=1)
@@ -66,9 +60,8 @@ def read_csv(path, epochs, num_cols, capacity=1000, batch_size=64, threads=1, mi
     data = tf.decode_csv(value, record_defaults=records)
 
     # 4、批处理，读取多条数据
-    feature_batch, label_batch = tf.train.shuffle_batch([data[0:-1], data[-1]], batch_size=batch_size,
-                                                        num_threads=threads, capacity=capacity,
-                                                        min_after_dequeue=min_after_dequeue)
+    feature_batch, label_batch = tf.train.shuffle_batch([data[0:-1], data[-1]], batch_size=batch_size, num_threads=threads,
+                                                        capacity=capacity, min_after_dequeue=min_after_dequeue)
     # print(feature_batch.shape, label_batch.shape)
     return feature_batch, label_batch
 
@@ -81,7 +74,7 @@ def ridge_regression(X, num_cols):
     '''
 
     weight = weight_init(shape=[num_cols-1, 1])
-    bias = bias_init(shape=[1])
+    bias = bias_init(shape=[1, 1])
     y_hat = tf.squeeze(tf.matmul(X, weight) + bias, axis=1, name='y_hat')
 
     return y_hat, weight, bias
@@ -103,7 +96,7 @@ def r2_score(label, y_hat):
     return R2
 
 
-def train_and_save_model(data_path, model_path, alpha=0.1, learning_rate=0.01):
+def train_and_save_model(train_data_path, columns, model_path, alpha=0.01, learning_rate=0.01):
     '''
     训练模型并持久化
     :param path: 数据源路径
@@ -111,12 +104,12 @@ def train_and_save_model(data_path, model_path, alpha=0.1, learning_rate=0.01):
     '''
     with tf.name_scope('Input_data'):
         # 构造CSV阅读器读取CSV
-        feature_batch, label_batch = read_csv(data_path,  epochs=10)
-        # feature_test, label_test = read_csv(path='/home/kdd/python/car/test')
+        feature_batch, label_batch = read_csv(train_data_path, num_cols=columns)
+        # feature_test, label_test = read_csv(test_data_path,  num_cols=columns, batch_size=batch_size)
 
     with tf.name_scope('Model'):
         # 构建Ridge模型
-        y_hat, weight, bias = ridge_regression(feature_batch)
+        y_hat, weight, bias = ridge_regression(feature_batch, num_cols=columns)
 
     with tf.name_scope('Loss'):
         # 计算并优化损失
@@ -127,8 +120,8 @@ def train_and_save_model(data_path, model_path, alpha=0.1, learning_rate=0.01):
     with tf.name_scope('Optimizer'):
         train_op = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss=loss)
 
-    with tf.name_scope('R2_score'):
-        R2 = r2_score(label_batch, y_hat)
+    # with tf.name_scope('R2_score'):
+    #     R2 = r2_score(label_test, tf.squeeze(tf.matmul(feature_test, weight) + bias, axis=1))
 
     with tf.name_scope('Log_summary'):
         # 日志摘要
@@ -167,13 +160,16 @@ def train_and_save_model(data_path, model_path, alpha=0.1, learning_rate=0.01):
             while not coord.should_stop():
                 start_time = time.time()
                 train, loss_step, summary = sess.run([train_op, loss, merged])
-                duration = time.time() - start_time
 
                 # 将每次训练产生的协议缓冲区摘要写入events文件
                 summary = sess.run(merged)
                 file_writer.add_summary(summary, step)
-                if step % 500 == 0:
-                    print(f'\n第{step}次训练的损失为：{loss_step:.4f}, 耗时{duration:.4f} sec, 拟合优度为{sess.run(R2):.4f}')
+                if step % 200 == 0:
+                    duration = time.time() - start_time
+                    print(f'\n第{step}次训练的损失为：{loss_step:.4f}, 耗时{duration:.3f} sec')
+                # if step * batch_size % len_train_data == 0:
+                #     epoch = step * batch_size / len_train_data
+                #     print(f'Epoch: {epoch}, 拟合优度为{sess.run(R2)}')
                     saver.save(sess, model_path, global_step=step)
                 step += 1
             # saver.save(sess, FLAGS.model_dir, global_step=step)
@@ -186,18 +182,23 @@ def train_and_save_model(data_path, model_path, alpha=0.1, learning_rate=0.01):
         coord.join(threads)
 
 
+def run():
+    # 1、读取MySQL并清洗然后写入CSV
+    generateCSV = GenerateCSV()
+    num_cols, car_class, len_train_data = generateCSV.run()
+
+    if num_cols:
+        # 数据路径
+        train_data_dir = f'/home/kdd/python/car/{car_class}'
+        test_data_dir = f'/home/kdd/python/car/{car_class}_test/'
+        # 模型路径
+        model_saving_dir = f'../../model-param/{car_class}/{car_class}.ckpt'
+
+        # 　２、读取CSV并训练模型
+        train_and_save_model(train_data_path=train_data_dir, columns=num_cols[0], model_path=model_saving_dir)
+
+
 
 if __name__ == '__main__':
 
-    # 1、读取MySQL并清洗然后写入CSV
-    generateCSV = GenerateCSV()
-    num_cols, car_class = generateCSV.run()
-
-    # 数据路径
-    data_dir = f'/home/kdd/python/car/{car_class}'
-    # 模型路径
-    model_saving_dir = f'../../model-param/{car_class}/{car_class}.ckpt'
-
-    #　２、读取CSV并训练模型
-    train_and_save_model(data_path=data_dir, model_path=model_saving_dir)
-
+    run()

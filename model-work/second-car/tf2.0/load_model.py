@@ -2,13 +2,15 @@
 # -*- coding: utf-8 -*-
 
 
-from datetime import datetime
-from selectMySQL import SelectMySQL
-import pandas as pd
 import tensorflow as tf
+from tensorflow import keras
+import os
+import math
+import pandas as pd
+from selectMySQL import SelectMySQL
+from datetime import datetime
 from processing import Processing
 import numpy as np
-
 
 
 def get_car_info_from_customer():
@@ -47,6 +49,7 @@ def get_customer_car_df(sql_to_customer_carConfig, sql_to_brand, sql_to_system):
         customer_carConfig = select.get_df(sql_to_customer_carConfig.format(car_info_from_customer['car_brand'],
                                                                             car_info_from_customer['car_system'],
                                                                             car_info_from_customer['car_model']))
+        customer_car_df = car_class = brands = systems = None
         if customer_carConfig:
             # 合并客户车辆配置信息和用户输入信息
             customer_car_info = dict(car_info_from_customer, **customer_carConfig[0])
@@ -66,63 +69,31 @@ def get_customer_car_df(sql_to_customer_carConfig, sql_to_brand, sql_to_system):
 
                 # 将客户车辆信息写入DataFrame
                 customer_car_df = pd.DataFrame([customer_car_info])
-
-                return customer_car_df, car_class, brands, systems
         else:
             print('\n客官，查无此车型')
-            return None, None, None, None
+
+        return customer_car_df, car_class, brands, systems
 
 
-def load_model(car_class):
+def load_model_predict(model_path, x):
     '''
-    加载模型
-    :param car_class: 车辆所属类型
-    :return: 权重、偏置
+    加载模型进行评估
+    :param path: 模型路径
+    :param test_data: 测试数据集路径
+    :return: 损失和准确率
     '''
-    w = b = None
-    # 模型路径
-    model_dir = f'../../model-param/{car_class}'
-    with tf.Session() as sess:
-        # 加载模型文件名
-        ckpt = tf.train.get_checkpoint_state(model_dir)
-        if ckpt and ckpt.model_checkpoint_path:
-            # 导入最新模型图结构
-            saver = tf.train.import_meta_graph(ckpt.model_checkpoint_path + '.meta')
-            saver.restore(sess, ckpt.model_checkpoint_path)
+    new_model = keras.models.load_model(model_path)
+    y_hat = new_model.predict(x)
 
-            graph = tf.get_default_graph()
-
-            # 家在权重和偏置
-            w = sess.run(graph.get_tensor_by_name('Model/weight:0'))
-            b = sess.run(graph.get_tensor_by_name('Model/bias:0'))
-        else:
-            print('\n客官，尚未发现此类车型的模型文件。。。')
-        return w, b
-
-
-def predict(X, weight, bias):
-    '''
-    预测
-    :param X: 待测样本特征
-    :param weight: 学得权重
-    :param bias: 学得偏置
-    :return: 预测值
-    '''
-    cp = np.dot(X, weight) + bias
-    price = np.expm1(cp)
-
-    return price
+    return y_hat
 
 
 def run():
 
     # 1、获取用户车辆的全部信息
-    customer_car_df, car_class, brands, systems = get_customer_car_df(sql_to_customer_carConfig, sql_to_brand, sql_to_system)
-
+    customer_car_df, car_class, brands, systems = get_customer_car_df(sql_to_customer_carConfig, sql_to_brand,
+                                                                      sql_to_system)
     if car_class:
-        # 2、根据车辆类型加载模型模型
-        weight, bias = load_model(car_class)
-
         # 3、对用户车信息进行处理
         process = Processing()
         categories, col_categ = process.get_category(car_class, brands, systems)
@@ -132,15 +103,14 @@ def run():
         df = pd.concat([df_categ, df_preprocessed[['meter_mile', 'vendor_guide_price']]], axis=1)
         df = df.astype('float32')
 
-        # 4、预测用户车辆价值
-        customer_car_price = predict(df, weight, bias)
-        print(f'\n客官，您的爱车值这个价：{customer_car_price}')
+        # 模型路径
+        model_dir = f'../../model-param/{car_class}/{car_class}.h5'
 
-def score(y, y_hat):
-    sse = sum((y - y_hat)**2)
-    sst = sum((y - np.average(y_hat, axis=0))**2)
-    r = 1- (sse / sst)
-    return r
+        # 4、预测用户车辆价值
+        y_hat = load_model_predict(model_path=model_dir, x=df)
+        customer_car_price = np.expm1(y_hat)
+        print(f'\n客官，您的爱车值这个价：{customer_car_price}万元')
+        # print(df)
 
 sql_to_customer_carConfig = """
 SELECT
@@ -162,6 +132,7 @@ WHERE
     AND
 	    car_model = "{2}"
 """
+
 sql_to_brand = """
 select
 	distinct car_brand
@@ -171,6 +142,7 @@ where
 	car_class = '{0}'
 order by id
 """
+
 sql_to_system = """
 select
 	distinct car_system
@@ -185,33 +157,13 @@ order by id
 col_NEV = ['car_brand', 'car_system', 'cylinder_number', 'driving', 'gearbox_type', 'intake_form',
            'maximum_power', 'register_time', 'meter_mile', 'sell_times', 'vendor_guide_price',
            'model_year', 'price']
+
 # 纯电动特征名称
 col_EV = ['car_brand', 'car_system', 'driving', 'gearbox_type','maximum_power', 'voyage_range', 'register_time',
           'meter_mile', 'sell_times', 'vendor_guide_price', 'model_year', 'price']
-pd.set_option('display.max_columns', None)
-pd.set_option('display.max_rows', None)
+
 
 
 if __name__ == '__main__':
 
-    # run()
-    car_class = 'suv'
-
-    # 获取测试集数据
-    test_data = pd.read_csv(f'/home/kdd/python/car/{car_class}_test/{car_class}.csv', sep=',', encoding='utf-8',
-                            skiprows=0)
-    print(test_data.shape)
-    x_test = test_data.iloc[:, :-1]
-    y_test = test_data.iloc[:, -1]
-    print(y_test.shape)
-
-    #加载模型
-    weight, bias = load_model(car_class)
-
-    # 预测
-    y_hat = predict(x_test, weight, bias)
-    y_hat = y_hat.flatten()
-    print(y_hat.shape)
-
-    score = score(y_test, y_hat)
-    print(f'{car_class}拟合优度为：{score}')
+    run()
