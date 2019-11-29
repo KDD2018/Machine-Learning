@@ -31,14 +31,14 @@ def parse_csv_line(line, n_fields):
     :return: 解析后的内容
     '''
     records = [tf.constant(np.nan)] * n_fields
-    parsed_fields = tf.io.decode_csv(line, record_defaults=records)
+    parsed_fields = tf.io.decode_csv(line, use_quote_delim=True, record_defaults=records)
     x = tf.stack(parsed_fields[0:-1])
     y = tf.stack(parsed_fields[-1])
     
     return x, y    
 
 
-def csv_read_dataset(filename_list, num_cols, n_readers=5, n_parse_threads=5, shuffle_buffer_size=10000):
+def csv_read_dataset(filename_list, num_cols, n_readers=5, n_parse_threads=5, shuffle_buffer_size=20000):
     '''
     读取并解析CSV
     :param filename_list: CSV文件名列表
@@ -57,6 +57,7 @@ def csv_read_dataset(filename_list, num_cols, n_readers=5, n_parse_threads=5, sh
                             num_parallel_calls=n_parse_threads)
     data_set = data_set.batch(batch_size=64)
 
+
     return data_set
 
 
@@ -69,21 +70,21 @@ def ridge_model(num_cols, train_data, valid_data, len_train, len_valid, test_dat
     :param len_train: 训练集样本数量
     :param len_valid: 验证集样本数量
     :param batch_size: 批大小
-    :param model_path: 模型保存路径
-    :return: 
+    :return: model
     '''
     # 构造模型
     model = keras.models.Sequential([
-        keras.layers.Dense(1, input_shape=(num_cols-1,), kernel_regularizer=keras.regularizers.l2(0.01))
+        keras.layers.Dense(1,  input_shape=(num_cols-1,), kernel_regularizer=keras.regularizers.l2(0.01))
     ])
     # 模型概要
     model.summary()
     # 编译模型
-    model.compile(loss='mean_squared_error', optimizer=keras.optimizers.Adam(learning_rate=0.01), metrics=['mae'])
+    model.compile(loss='mean_squared_error', optimizer=keras.optimizers.Adam(learning_rate=0.01),
+                  metrics=[tf.keras.metrics.MeanAbsoluteError()])
     # 训练模型
     callbacks = [keras.callbacks.EarlyStopping(patience=5, min_delta=1e-3)]
     history = model.fit(train_data, validation_data=valid_data, steps_per_epoch=len_train // 64,
-                        validation_steps=len_valid // 64, epochs=3, callbacks=callbacks)
+                        validation_steps=len_valid // 64, epochs=5, callbacks=callbacks)
     # 模型评估
     print('\n模型在测试集上的表现：')
     model.evaluate(test_data, steps=len_test // 64)

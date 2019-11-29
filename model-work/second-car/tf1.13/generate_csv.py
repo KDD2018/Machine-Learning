@@ -67,6 +67,7 @@ class GenerateCSV():
                 car_system = select.get_df(sql_to_system.format(car_class))
                 brands = [i['car_brand'] for i in car_brand]
                 systems = [i['car_system'] for i in car_system]
+                print(systems)
 
             else:
                 print('\n客官，查无此车型')

@@ -20,10 +20,10 @@ class GenerateCSV():
         :return: 用户车辆信息字典
         '''
         print('\n客官,请提供您爱车的相关信息：')
-        brand_name = input('\n请输入品牌：') or '大众'
-        car_system = input('请输入车系：') or '途观'
-        car_model_name = input('请输入车型：') or '2016款 280TSI 自动两驱丝绸之路舒适版'
-        register_time = datetime.strptime(input('请输入上牌时间：') or '2016-09-01', '%Y-%m-%d')
+        brand_name = input('\n请输入品牌：') or '特斯拉'
+        car_system = input('请输入车系：') or 'Model S'
+        car_model_name = input('请输入车型：') or '2014款 MODEL S P85'
+        register_time = datetime.strptime(input('请输入上牌时间：') or '2015-09-01', '%Y-%m-%d')
         meter_mile = float(input('请输入已行驶里程（公里）：') or 30000)
         sell_times = float(input('请输入过户次数：') or 0)
         car_info_from_customer = {'car_brand': brand_name, 'car_system': car_system, 'car_model': car_model_name,
@@ -65,7 +65,6 @@ class GenerateCSV():
                 car_system = select.get_df(sql_to_system.format(car_class))
                 brands = [i['car_brand'] for i in car_brand]
                 systems = [i['car_system'] for i in car_system]
-
             else:
                 print('\n客官，查无此车型')
             return car_class, brands, systems
@@ -82,22 +81,24 @@ class GenerateCSV():
         :param batch_size: 每页案例数量
         :return: 查询案例结果
         '''
-        select = SelectMySQL(host='***', user='***', passwd='***', db='***')
+        select = SelectMySQL(host='***', user='***', passwd='***', db='valuation_web')
         # 查询样本数量
         num_case_result = select.get_df(sql_to_case_num.format(car_class, model_year_dict[car_class]))
         len_case = num_case_result[0].get('count(*)')
         # 查询有几页数据
-        epochs = math.ceil(len_case / batch_size)
+        epoch = math.ceil(len_case / batch_size)
 
         cols_num_list = []
         test = valid = pd.DataFrame()
-        for i in range(epochs):
+        for i in range(epoch):
             # 获取案例信息
             print(f'\n开始获取并处理第{i}页案例信息......')
             car_case = select.get_df(sql_to_CarConfig_CarCase.format(car_class, model_year_dict[car_class],
                                                                      i, batch_size))
             # 将同类车辆案例信息写入DataFrame
             car_case_df = pd.DataFrame(car_case, columns=car_case[0].keys())
+
+
             # 处理数据
             process = Processing()
             categories, col_categ = process.get_category(car_class, brands, systems)
@@ -105,11 +106,13 @@ class GenerateCSV():
             print('\n开始预处理...')
             df_preprocessed = process.preprocess(car_case_df)  # 预处理
 
+
             print('\n开始离散化....')
             df_disrete = process.feature_encode(df_preprocessed, col_NEV, col_EV)  # 离散化
 
             print('\n开始one-hot编码')
             df_categ = process.onehot_encode(df_disrete[col_categ], categories)  # onehot编码
+
             df = pd.concat([df_categ, df_preprocessed[['meter_mile', 'vendor_guide_price', 'price']]], axis=1)
             cols_num_list.append(len(df.columns))
             # 拆分数据
@@ -240,10 +243,10 @@ col_EV = ['car_brand', 'car_system', 'driving', 'gearbox_type','maximum_power', 
 # 用于过滤太老旧的车
 model_year_dict = {'saloon': 2005, 'suv': 2007, 'mpv': 2006, 'minibus': 2007, 'supercar': 0, 'EV': 0}
 
+pd.set_option('display.max_rows', None)
 
 
 if __name__ == '__main__':
     generate = GenerateCSV()
     num_cols, car_class, len_train, len_test, len_valid = generate.run()
-    print(num_cols)
 

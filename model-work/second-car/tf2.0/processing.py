@@ -19,7 +19,10 @@ class Processing():
         :param data: 要处理的数据框
         :return: 处理后的数据框
         '''
-        if data.loc[0, 'car_class'] != 'EV':
+        if data.loc[0, 'car_class'] == 'EV':
+            del data['cylinder_number'], data['intake_form']
+            data.loc[:, 'voyage_range'] = data['voyage_range'] / 1000.0  # 换算成公里
+        else:
             del data['voyage_range']
         data.dropna(inplace=True)
         data.index = range(len(data))
@@ -41,18 +44,20 @@ class Processing():
         '''
         特征离散编码
         :param data: 数据框
+        :param col1: EV特征
+        :param col1: not EV特征
         :return: 离散化处理的数据框
         '''
-        if data.loc[0, 'car_class'] != 'EV':
+        if data.loc[0, 'car_class'] == 'EV':
+            df = data.loc[:, col2]
+            df.loc[:, 'voyage_range'] = pd.cut(df.voyage_range, bins=[0, 100, 250, 350, 450, 600, 1000],
+                                               labels=['100公里以内', '100-250公里', '250-350公里', '350-450公里',
+                                                       '450-600公里', '600公里以上'])
+        else:  # 纯电动
             df = data.loc[:, col1]
             # 气缸离散化
             df.loc[:, 'cylinder_number'] = pd.cut(df.cylinder_number, bins=[0, 2, 3, 4, 5, 6, 8, 20],
                                                     labels=['2缸', '3缸', '4缸','5缸', '6缸', '8缸', '10缸以上'])
-        else:  # 纯电动
-            df = data.loc[:, col2]
-        # df = df.dropna()
-        # df.reindex = range(len(df))
-
         # 最大功率离散化
         df.loc[:, 'maximum_power'] = pd.cut(df.maximum_power, bins=[ 0, 100, 150, 200, 250, 500, 5000],
                                               labels=['100KW以内', '100-150KW', '150-200KW', '200-250KW', '250-500KW', '500KW以上'])
@@ -67,20 +72,6 @@ class Processing():
                                            labels=['2008款以前', '2009-2012款', '2013-2017款', '2018款及以后'])
 
         return df
-
-
-    def split_data(self, data):
-        '''
-        将数据划分为训练集和测试集
-        :param data: 数据框
-        :return: X_train, X_test, y_train, y_test
-        '''
-
-        target = data.iloc[:,-1]  # 目标值
-        feature = data.iloc[:,:-1]  # 特征值
-        X_train, X_test, y_train, y_test = train_test_split(feature, target, test_size=0.3)
-
-        return  X_train, X_test, y_train, y_test, feature, target
 
 
     def split_train_test(self, data, test_ratio):
@@ -99,12 +90,18 @@ class Processing():
 
 
     def get_category(self, car_class, car_brand, car_system):
-
+        '''
+        获取分类类别
+        :param car_class: 车辆类型
+        :param car_brand: 品牌集
+        :param car_system: 车系集
+        :return: 分类及相应特征
+        '''
         # 分类型特征名称
         cols_name_categ_NEV = ['car_brand', 'car_system', 'cylinder_number', 'driving', 'gearbox_type',
                               'intake_form', 'maximum_power', 'register_time', 'sell_times', 'model_year']
         cols_name_categ_EV = ['car_brand', 'car_system', 'driving', 'gearbox_type', 'maximum_power', 'register_time',
-                             'sell_times', 'model_year']
+                             'sell_times', 'model_year', 'voyage_range']
 
         # 分类型特征类别
         cylinder_number = ['2缸', '3缸', '4缸', '5缸', '6缸', '8缸', '10缸以上']
@@ -115,10 +112,11 @@ class Processing():
         register_time = ['1年以内', '1-3年', '3-5年', '5-8年', '8年以上']
         sell_times = ['0次', '1次', '2次', '3次', '4次', '5次及以上']
         model_year = ['2008款以前', '2009-2012款', '2013-2017款', '2018款及以后']
+        voyage_range = ['100公里以内', '100-250公里', '250-350公里', '350-450公里', '450-600公里', '600公里以上']
 
         categories_NEV = [cylinder_number, driving, gearbox_type, intake_form, maximum_power, register_time,
                           sell_times, model_year]
-        categories_EV = [driving, gearbox_type, maximum_power, register_time, sell_times, model_year]
+        categories_EV = [driving, gearbox_type, maximum_power, register_time, sell_times, model_year, voyage_range]
 
         if car_class == 'EV':  # 纯电动类型车辆的分类型特征和类别
             categories_EV.insert(0, car_brand)
