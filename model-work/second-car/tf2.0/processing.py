@@ -102,7 +102,6 @@ class Processing():
                               'intake_form', 'maximum_power', 'register_time', 'sell_times', 'model_year']
         cols_name_categ_EV = ['car_brand', 'car_system', 'driving', 'gearbox_type', 'maximum_power', 'register_time',
                              'sell_times', 'model_year', 'voyage_range']
-
         # 分类型特征类别
         cylinder_number = ['2缸', '3缸', '4缸', '5缸', '6缸', '8缸', '10缸以上']
         driving = ['四驱', '后驱', '前驱']
@@ -113,7 +112,6 @@ class Processing():
         sell_times = ['0次', '1次', '2次', '3次', '4次', '5次及以上']
         model_year = ['2008款以前', '2009-2012款', '2013-2017款', '2018款及以后']
         voyage_range = ['100公里以内', '100-250公里', '250-350公里', '350-450公里', '450-600公里', '600公里以上']
-
         categories_NEV = [cylinder_number, driving, gearbox_type, intake_form, maximum_power, register_time,
                           sell_times, model_year]
         categories_EV = [driving, gearbox_type, maximum_power, register_time, sell_times, model_year, voyage_range]

@@ -4,10 +4,11 @@
 
 import tensorflow as tf
 import numpy as np
-import pprint
+from datetime import datetime
 import os
 from tensorflow import keras
 from generate_csv import GenerateCSV
+
 
 
 
@@ -38,7 +39,7 @@ def parse_csv_line(line, n_fields):
     return x, y    
 
 
-def csv_read_dataset(filename_list, num_cols, n_readers=5, n_parse_threads=5, shuffle_buffer_size=20000):
+def csv_read_dataset(filename_list, num_cols, n_readers=5, n_parse_threads=5, shuffle_buffer_size=50000):
     '''
     读取并解析CSV
     :param filename_list: CSV文件名列表
@@ -50,8 +51,8 @@ def csv_read_dataset(filename_list, num_cols, n_readers=5, n_parse_threads=5, sh
     :return: 批数据
     '''
     filename_ds = tf.data.Dataset.list_files(filename_list).repeat()
-    data_set =  filename_ds.interleave(
-        lambda filename: tf.data.TextLineDataset(filename).skip(1), cycle_length=n_readers)
+    data_set =  filename_ds.interleave(lambda filename: tf.data.TextLineDataset(filename).skip(1),
+                                       cycle_length=n_readers)
     data_set.shuffle(shuffle_buffer_size)
     data_set = data_set.map(lambda row: parse_csv_line(line=row, n_fields=num_cols),
                             num_parallel_calls=n_parse_threads)
@@ -74,7 +75,10 @@ def ridge_model(num_cols, train_data, valid_data, len_train, len_valid, test_dat
     '''
     # 构造模型
     model = keras.models.Sequential([
-        keras.layers.Dense(1,  input_shape=(num_cols-1,), kernel_regularizer=keras.regularizers.l2(0.01))
+        keras.layers.Dense(1,  input_shape=(num_cols-1, ), kernel_regularizer=keras.regularizers.l2(0.01)),
+        keras.layers.Dense(32, kernel_regularizer=keras.regularizers.l2(0.01)),
+        keras.layers.Dense(16, kernel_regularizer=keras.regularizers.l2(0.01)),
+        keras.layers.Dense(1, kernel_regularizer=keras.regularizers.l2(0.01))
     ])
     # 模型概要
     model.summary()
@@ -82,7 +86,7 @@ def ridge_model(num_cols, train_data, valid_data, len_train, len_valid, test_dat
     model.compile(loss='mean_squared_error', optimizer=keras.optimizers.Adam(learning_rate=0.01),
                   metrics=[tf.keras.metrics.MeanAbsoluteError()])
     # 训练模型
-    callbacks = [keras.callbacks.EarlyStopping(patience=5, min_delta=1e-3)]
+    callbacks = [keras.callbacks.EarlyStopping(patience=5, min_delta=1e-4)]
     history = model.fit(train_data, validation_data=valid_data, steps_per_epoch=len_train // 64,
                         validation_steps=len_valid // 64, epochs=5, callbacks=callbacks)
     # 模型评估
@@ -95,16 +99,30 @@ def ridge_model(num_cols, train_data, valid_data, len_train, len_valid, test_dat
 def run():
     # 1、读取MySQL、处理、写入CSV文件
     generate = GenerateCSV()
-    num_cols, car_class, len_train, len_test, len_valid = generate.run()
+    num_cols, car_class, car_level, len_train, len_test, len_valid = generate.run()
+
+    # num_cols = 263
+    # car_class = 'supercar'
+    # len_train = 9209
+    # len_test = 3069
+    # len_valid = 3069
 
 
     if num_cols:
-        # 数据路径
-        train_data_dir = f'/home/kdd/python/car/train/{car_class}'
-        test_data_dir = f'/home/kdd/python/car/test/{car_class}_test/'
-        valid_data_dir = f'/home/kdd/python/car/valid/{car_class}_valid/'
-        # 模型路径
-        model_dir = f'../../model-param/{car_class}/{car_class}.h5'
+        if car_class in ['saloon', 'suv']:
+            # 数据路径
+            train_data_dir = f'/home/kdd/python/car/train/{car_class}/{car_level}'
+            test_data_dir = f'/home/kdd/python/car/test/{car_class}_test/{car_level}'
+            valid_data_dir = f'/home/kdd/python/car/valid/{car_class}_valid/{car_level}'
+            # 模型路径
+            model_dir = f'../../model-param/{car_class}/{car_class}_{car_level}.h5'
+        else:
+            # 数据路径
+            train_data_dir = f'/home/kdd/python/car/train/{car_class}'
+            test_data_dir = f'/home/kdd/python/car/test/{car_class}_test/'
+            valid_data_dir = f'/home/kdd/python/car/valid/{car_class}_valid/'
+            # 模型路径
+            model_dir = f'../../model-param/{car_class}/{car_class}.h5'
 
         # 读取csv文件并解析
         train_filename_list = get_file_list(path=train_data_dir)
@@ -121,5 +139,8 @@ def run():
 
 
 if __name__ == '__main__':
+    print(f'\n开始执行，当前时间: {datetime.now()}')
     run()
+    print(f'\n模型生成完毕，当前时间：{datetime.now()}')
+
 
