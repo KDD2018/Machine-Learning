@@ -4,10 +4,12 @@
 
 import tensorflow as tf
 import numpy as np
+import pandas as pd
 from datetime import datetime
 import os
 from tensorflow import keras
 from generate_csv import GenerateCSV
+import matplotlib.pyplot as plt
 
 
 
@@ -62,6 +64,17 @@ def csv_read_dataset(filename_list, num_cols, n_readers=5, n_parse_threads=5, sh
     return data_set
 
 
+def plot_learning_curves(history):
+    '''
+    绘制学习曲线
+    :param history: 
+    :return: 
+    '''
+    pd.DataFrame(history.history).plot(figsize=(8,5))
+    plt.grid(True)
+    plt.show()
+
+
 def ridge_model(num_cols, train_data, valid_data, len_train, len_valid, test_data, len_test):
     '''
     创建模型
@@ -76,9 +89,9 @@ def ridge_model(num_cols, train_data, valid_data, len_train, len_valid, test_dat
     # 构造模型
     model = keras.models.Sequential([
         keras.layers.Dense(1,  input_shape=(num_cols-1, ), kernel_regularizer=keras.regularizers.l2(0.01)),
-        keras.layers.Dense(32, kernel_regularizer=keras.regularizers.l2(0.01)),
-        keras.layers.Dense(16, kernel_regularizer=keras.regularizers.l2(0.01)),
-        keras.layers.Dense(1, kernel_regularizer=keras.regularizers.l2(0.01))
+        # keras.layers.Dense(32, kernel_regularizer=keras.regularizers.l2(0.01)),
+        # keras.layers.Dense(16, kernel_regularizer=keras.regularizers.l2(0.01)),
+        # keras.layers.Dense(1, kernel_regularizer=keras.regularizers.l2(0.01))
     ])
     # 模型概要
     model.summary()
@@ -86,9 +99,10 @@ def ridge_model(num_cols, train_data, valid_data, len_train, len_valid, test_dat
     model.compile(loss='mean_squared_error', optimizer=keras.optimizers.Adam(learning_rate=0.01),
                   metrics=[tf.keras.metrics.MeanAbsoluteError()])
     # 训练模型
-    callbacks = [keras.callbacks.EarlyStopping(patience=5, min_delta=1e-4)]
+    callbacks = [keras.callbacks.EarlyStopping(patience=5, min_delta=1e-3)]
     history = model.fit(train_data, validation_data=valid_data, steps_per_epoch=len_train // 64,
-                        validation_steps=len_valid // 64, epochs=5, callbacks=callbacks)
+                        validation_steps=len_valid // 64, epochs=10, callbacks=callbacks)
+    plot_learning_curves(history)
     # 模型评估
     print('\n模型在测试集上的表现：')
     model.evaluate(test_data, steps=len_test // 64)

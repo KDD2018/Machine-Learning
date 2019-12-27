@@ -50,7 +50,7 @@ class GenerateCSV():
             print('\n客观，您的爱车接近报废啦。。。。。')
         else:
             # 查询客户车辆参数配置、类型
-            select = SelectMySQL(host='***', user='***', passwd='***', db='***')
+            select = SelectMySQL(host='192.168.0.3', user='clean', passwd='Zlpg1234!', db='valuation_web')
             # 根据车辆品牌、车系、车型获取用户车辆参数配置信息
             print('\n正在查询用户车辆信息.....')
             customer_carConfig = select.get_df(sql_to_customer_carConfig.format(car_info_from_customer['car_brand'],
@@ -98,7 +98,7 @@ class GenerateCSV():
         :param batch_size: 每页案例数量
         :return: 查询案例结果
         '''
-        select = SelectMySQL(host='***', user='***', passwd='***', db='***')
+        select = SelectMySQL(host='192.168.0.3', user='clean', passwd='Zlpg1234!', db='valuation_web')
         print('\n查询样本数量......')
         if car_class in ['saloon', 'suv']:
             num_case_result = select.get_df(sql_to_case_num_of_saloon_suv.format(car_class, car_level,
