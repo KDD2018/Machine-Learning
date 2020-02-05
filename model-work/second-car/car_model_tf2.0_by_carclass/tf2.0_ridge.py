@@ -36,11 +36,12 @@ def parse_csv_line(line, n_fields):
     parsed_fields = tf.io.decode_csv(line, use_quote_delim=True, record_defaults=records)
     x = tf.stack(parsed_fields[0:-1])
     y = tf.stack(parsed_fields[-1])
-    
+    print(x)
+    print(y)
     return x, y    
 
 
-def csv_read_dataset(filename_list, num_cols, n_readers=5, n_parse_threads=5, shuffle_buffer_size=50000):
+def csv_read_dataset(filename_list, num_cols, n_readers=5, n_parse_threads=5, shuffle_buffer_size=20000):
     '''
     读取并解析CSV
     :param filename_list: CSV文件名列表
@@ -66,8 +67,8 @@ def csv_read_dataset(filename_list, num_cols, n_readers=5, n_parse_threads=5, sh
 def plot_learning_curves(history):
     '''
     绘制学习曲线
-    :param history: 
-    :return: 
+    :param history: 训练过程
+    :return: None
     '''
     pd.DataFrame(history.history).plot(figsize=(8,5))
     plt.grid(True)
@@ -128,17 +129,17 @@ def run():
         model_dir = f'../../model-param/{car_class}/{car_class}.h5'
 
         # 读取csv文件并解析
-        train_filename_list = get_file_list(path=train_data_dir)
+        #train_filename_list = get_file_list(path=train_data_dir)
         valid_filename_list = get_file_list(path=valid_data_dir)
-        test_filename_list = get_file_list(path=test_data_dir)
-        train_data = csv_read_dataset(train_filename_list, num_cols=num_cols)
+        #test_filename_list = get_file_list(path=test_data_dir)
+        #train_data = csv_read_dataset(train_filename_list, num_cols=num_cols)
         valid_data = csv_read_dataset(valid_filename_list, num_cols=num_cols)
-        test_data = csv_read_dataset(test_filename_list, num_cols=num_cols)
+        #test_data = csv_read_dataset(test_filename_list, num_cols=num_cols)
 
         # 训练模型
-        model = ridge_model(num_cols, train_data, valid_data, len_train, len_valid, test_data, len_test)
+        #model = ridge_model(num_cols, train_data, valid_data, len_train, len_valid, test_data, len_test)
         # 保存模型
-        model.save(model_dir)
+        #model.save(model_dir)
 
 
 if __name__ == '__main__':

@@ -17,12 +17,12 @@ def get_car_info_from_customer():
     :return: 用户车辆表
     '''
 
-    brand_name = input('请输入品牌：') or '奥迪'
-    car_system = input('请输入车系：') or '奥迪A6L'
-    car_model_name = input('请输入车型：') or '2006款 3.2 FSI 舒适娱乐型'
-    register_time = datetime.strptime(input('请输入上牌时间：') or '2006-10-01', '%Y-%m-%d')
-    meter_mile = float(input('请输入已行驶里程（公里）：') or 340000)
-    sell_times = float(input('请输入过户次数：') or 1)
+    brand_name = input('请输入品牌：') or '大众'
+    car_system = input('请输入车系：') or '途观'
+    car_model_name = input('请输入车型：') or '2016款 300TSI 自动两驱风尚版'
+    register_time = datetime.strptime(input('请输入上牌时间：') or '2016-12-01', '%Y-%m-%d')
+    meter_mile = float(input('请输入已行驶里程（公里）：') or 79400)
+    sell_times = float(input('请输入过户次数：') or 0)
     car_info_from_customer = {'car_brand': brand_name, 'car_system': car_system, 'car_model': car_model_name,
                      'register_time': register_time, 'meter_mile': meter_mile, 'sell_times': sell_times}
 
@@ -44,7 +44,7 @@ def get_customer_car_df(sql_to_customer_carConfig, sql_to_system, sql_to_level):
         print('\n客观，您的爱车接近报废啦。。。。。')
     else:
         # 查询客户车辆参数配置、类型
-        select = SelectMySQL(host='***', user='***', passwd='***', db='valuation_web')
+        select = SelectMySQL(host='192.168.0.3', user='clean', passwd='Zlpg1234!', db='valuation_web')
         # 根据车辆品牌、车系、车型获取用户车辆参数配置信息
         customer_carConfig = select.get_df(sql_to_customer_carConfig.format(car_info_from_customer['car_brand'],
                                                                             car_info_from_customer['car_system'],
