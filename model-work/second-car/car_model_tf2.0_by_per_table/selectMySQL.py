@@ -15,7 +15,7 @@ class SelectMySQL(object):
         self.passwd = passwd
         self.db = db
 
-    def get_df(self,sql):
+    def get_data(self,sql):
         '''
         连接MySQL并返回数据
         :param sql: 查询语句
