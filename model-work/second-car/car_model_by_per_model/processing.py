@@ -44,18 +44,14 @@ class Processing():
         # print(data.isnull().any())
         # 最大功率离散化
         df.loc[:, 'maximum_power'] = pd.cut(df.maximum_power, bins=[ 0, 100, 150, 200, 250, 500, 5000],
-                                              labels=['100KW以内', '100-150KW', '150-200KW', '200-250KW', '250-500KW', '500KW以上'])
-        # 上牌时间
-        #df.loc[:, 'register_time'] = pd.cut(df.register_time, bins=[-1, 1, 3, 5, 8, 50],
-                                              #labels=['1年以内', '1-3年', '3-5年', '5-8年', '8年以上'])
+                                            labels=['100KW以内', '100-150KW', '150-200KW', '200-250KW', '250-500KW',
+                                                    '500KW以上'])
         # 过户次数
         df.loc[:, 'sell_times'] = pd.cut(df.sell_times, bins=[-1, 0.01, 1, 2, 3, 20],
-                                           labels=['0次', '1次', '2次', '3次', '4次及以上'])  # 左开右闭
+                                         labels=['0次', '1次', '2次', '3次', '4次及以上'])  # 左开右闭
         # 车款年份
         df.loc[:, 'model_year'] = pd.cut(df.model_year, bins=[0, 2008, 2013, 2017, 2100],
                                            labels=['2008款以前', '2009-2012款', '2013-2017款', '2018款及以后'])
-        #df.loc[:, 'meter_mile'] = pd.cut(df.meter_mile, bins=[0, 6, 10, 15, 20, 25, 30, 60],
-                                         #labels=['九成新', '八成新', '七五成新', '六成新', '五五成新', '半旧', '旧'])
 
         return df
 
@@ -131,5 +127,35 @@ class Processing():
         data_encode = enc.fit_transform(data)
         df = pd.DataFrame(data_encode, index=data.index, columns=enc.get_feature_names())
         # print(enc.get_feature_names())
+        return df
+
+
+    def feature_engineering(self, car_class, data, car_models):
+        '''
+        特征工程
+        :param car_class: 车辆类型
+        :param data: 案例信息
+        :param car_models: 车型集合
+        :return: 
+        '''
+        if car_class == 'EV':
+            data.pop('displacement')
+        else:
+            data.pop('voyage_range')
+
+        data.dropna(inplace=True)
+        data.index = range(data.shape[0])
+
+        # 获取分类型特征及特征类别
+        categories, categorical_features = self.get_category(car_class, car_models)
+        #print(categorical_features)
+        # 分类型特征离散化
+        df_disrete = self.feature_encode(data, car_class)
+        #print(df_disrete.isnull().any())
+        # one-hot编码
+        df_categ = self.onehot_encode(df_disrete[categorical_features], categories)
+        df = pd.concat([df_categ,
+                        df_disrete[['car_age', 'mile_per_year', 'mileage_newness_rate', 'hedge_ratio']]], axis=1)
+
         return df
 
