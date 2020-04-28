@@ -61,12 +61,12 @@ logging.info(
 
 class CleanDataIntoCar:
     def __init__(self):
-        self.conn_default = pymysql.connect(host='192.168.0.3', user='pnggu', passwd='Pinggu123',
+        self.conn_default = pymysql.connect(host='****', user='****', passwd='***',
                                             db='python3', port=3306, charset='utf8',
                                             cursorclass=pymysql.cursors.DictCursor, connect_timeout=7200)
         self.cursor_default = self.conn_default.cursor()
 
-        self.default_tow = pymysql.connect(host='192.168.0.3', user='clean', passwd='Zlpg1234!',
+        self.default_tow = pymysql.connect(host='****', user='****', passwd='****',
                                            db=db_name, port=3306, charset='utf8',
                                            cursorclass=pymysql.cursors.DictCursor, connect_timeout=7200)
         self.cursor_default_tow = self.default_tow.cursor()
