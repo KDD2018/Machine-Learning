@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 class Analysis(object):
     '''分析各类型中数据分桶'''
     def __init__(self):
-        self.default_conn = pymysql.connect(host='192.168.0.3', user='clean', passwd='Zlpg1234!',
+        self.default_conn = pymysql.connect(host='192.168.0.3', user='clean', passwd='ZLypg256#@#$54#',
                                             db='valuation_web', port=3306, charset='utf8',
                                             cursorclass=pymysql.cursors.DictCursor, connect_timeout=7200)
         self.default_cursor = self.default_conn.cursor()

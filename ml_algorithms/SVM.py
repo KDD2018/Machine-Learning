@@ -116,7 +116,7 @@ def choose_and_update(svm, alpha_i):
     error_i = cal_error(svm, alpha_i)  # 计算第一个样本的E_i
 
     # 判断选择出的第一个变量是否违反了KKT条件
-    if (svm.train_y[alpha_i] * error_i < -svm.toler) and (svm.alphas[alpha_i] < svm.C) or 
+    if (svm.train_y[alpha_i] * error_i < -svm.toler) and (svm.alphas[alpha_i] < svm.C) or \
         (svm.train_y[alpha_i] * error_i > svm.toler) and (svm.alphas[alpha_i] > 0):
         # 1. 选择第二个变量
         alpha_j, error_j = select_second_sample_j(svm, alpha_i, error_i)
@@ -175,7 +175,7 @@ def choose_and_update(svm, alpha_i):
     else:
         return 0
    
-def SVM_training(train_x, train_y, C, toler, max_iter, kernel_option = ('rbf', 0.431029)):
+def SVM_training(train_x, train_y, C, toler, max_iter, kernel_option=('rbf', 0.431029)):
     '''
     Desc: SVM模型训练
     Args: train_x(mat) 训练数据的特征
