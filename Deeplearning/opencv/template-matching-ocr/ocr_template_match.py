@@ -20,11 +20,15 @@ FIRST_NUMBER = {
 	"5": "MasterCard",
 	"6": "Discover Card"
 }
+
+
 # 绘图展示
 def cv_show(name,img):
 	cv2.imshow(name, img)
 	cv2.waitKey(0)
 	cv2.destroyAllWindows()
+
+
 # 读取一个模板图像
 img = cv2.imread(args["template"])
 cv_show('img',img)
