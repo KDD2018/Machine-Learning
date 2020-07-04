@@ -48,7 +48,7 @@ def error_rate(h, label):
     m = np.shape(h)[0]
     sum_err = .0
     for i in range(m):
-        if h[i, 0] >0 and (1 - h[i, 0]) >0:
+        if h[i, 0] > 0 and (1 - h[i, 0]) > 0:
             sum_err += (label[i, 0] * np.log(h[i, 0]) + (1 - label[i, 0]) * np.log(1 - h[i, 0]))
         else:
             sum_err += 0
