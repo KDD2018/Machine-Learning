@@ -43,8 +43,7 @@ def gradientAscent(feature_data, label_data, k, maxCycle, alpha):
     while i <= maxCycle:
         err = np.exp(feature_data * weights)
         if i %100 == 0:
-            print('\t------iter: ', i, \
-                 ', cost: ', cost(err, label_data))
+            print('\t------iter: ', i, ', cost: ', cost(err, label_data))
     rowsum = -err.sum(axis=1)
     rowsum = rowsum.repeat(k, axis=1)
     err = err / rowsum
@@ -88,7 +87,7 @@ def save_model(file_name, weights):
     f_w.close()
 
 
-if __name__= '__main__':
+if __name__== '__main__':
     print('-------- 1. load data ---------')
     feature, label, k  = load_data(input_file)
     print('--------- 2. traing ------------')

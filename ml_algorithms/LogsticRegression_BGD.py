@@ -17,8 +17,9 @@ def load_data(file_name):
     for line in f.readlines():
         feature_tmp = []
         label_tmp = []
+        # strip去除字符串首尾字符(这里是空格)
         lines = line.strip().split('\t')
-        feature_tmp.append(1)
+        feature_tmp.append(1)  # 偏置项
         for i in range(len(lines)-1):
             feature_tmp.append(float(lines[i]))
         label_tmp.append(float(lines[-1]))
@@ -49,7 +50,7 @@ def error_rate(h, label):
     sum_err = .0
     for i in range(m):
         if h[i, 0] > 0 and (1 - h[i, 0]) > 0:
-            sum_err += (label[i, 0] * np.log(h[i, 0]) + (1 - label[i, 0]) * np.log(1 - h[i, 0]))
+            sum_err -= (label[i, 0] * np.log(h[i, 0]) + (1 - label[i, 0]) * np.log(1 - h[i, 0]))
         else:
             sum_err += 0
     return sum_err/m
@@ -64,16 +65,16 @@ def lr_train_bgd(feature, label, maxCycel, alpha):
           alpha(float) 学习速率（步长）
     Returns: w(mat) 权重
     '''
-    n = np.shape(feature)[1] # 特征个数
-    w = np.mat(np.ones((n, 1))) # 初始化权重
+    n = np.shape(feature)[1]  # 特征个数
+    w = np.mat(np.ones((n, 1)))  # 初始化权重
     i = 0
-    while i <= maxCycel: # 在最大迭代次数的范围内
-        i += 1 # 当前迭代次数
-        h = sig(feature * w) # 计算sigmoid值
+    while i <= maxCycel:  # 在最大迭代次数的范围内
+        i += 1  # 当前迭代次数
+        h = sig(feature * w)  # 计算sigmoid值
         err = label - h
         if i % 100 == 0:
             print('\t-----iter=' + str(i) + ', train error rate=' + str(error_rate(h, label)))
-        w = w + alpha * feature.T * err # 权重修正 
+        w = w + alpha * feature.T * err  # 权重修正
     return w
 
 
@@ -92,7 +93,7 @@ def save_model(file_name, w):
     f_w.close()
 
 
-if __name__ == __main__:
+if __name__ == "__main__":
     # 1.导入训练数据
     print('-------- 1. load data ---------')
     feature, label = load_data('data.txt')

@@ -157,3 +157,4 @@ if __name__ == '__main__':
     # ocr
     text = pytesseract.image_to_string(ref)
     print(text)
+
