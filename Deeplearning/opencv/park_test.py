@@ -2,11 +2,7 @@ from __future__ import division
 import matplotlib.pyplot as plt
 import cv2
 import os, glob
-import numpy as np
-from PIL import Image
-# from keras.applications.imagenet_utils import preprocess_input
 from tensorflow import keras
-# from keras.preprocessing import image
 from Parking import Parking
 import pickle
 
@@ -104,11 +100,9 @@ if __name__ == '__main__':
     weights_path = 'car1.h5'
     video_name = 'parking_video.mp4'
     class_dictionary = {0: 'empty', 1: 'occupied'}
-    # class_dictionary[0] = 'empty'
-    # class_dictionary[1] = 'occupied'
     park = Parking()
     park.show_images(test_images)
     final_spot_dict = img_process(test_images, park)
     model = keras_model(weights_path)
     img_test(test_images, final_spot_dict, model, class_dictionary)
-    video_test(video_name, final_spot_dict, model, class_dictionary)
+    # video_test(video_name, final_spot_dict, model, class_dictionary)
