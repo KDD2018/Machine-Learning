@@ -6,20 +6,21 @@ import json
 import os
 
 
-data_root = os.path.abspath(os.path.join(os.getcwd(), '../..'))
-image_path = data_root + '/data_set/flower_data/'
-train_dir = image_path + 'train'
-validation_dir = image_path + 'val'
+# data_root = os.path.abspath(os.path.join(os.getcwd(), '../..'))
+# image_path = '/flower_data/'
+train_dir = './flower_data/train'
+validation_dir = './flower_data/validation'
 
 
 if not os.path.exists('save_weights'):
-    os.mkdirs('save_weights')
+    os.mkdir('save_weights')
 
 img_height, img_width = 224, 224
 batch_size = 32
 epochs = 10
 
 
+# 准备训练集和验证集
 train_image_generator = ImageDataGenerator(rescale=1. / 255, horizontal_flip=True)
 validation_image_generator = ImageDataGenerator(rescale=1. / 255)
 train_data_gen = train_image_generator.flow_from_directory(directory=train_dir,
@@ -32,9 +33,10 @@ valid_data_gen = validation_image_generator.flow_from_directory(directory=valida
                                                                 shuffle=False,
                                                                 target_size=(img_height, img_width),
                                                                 class_mode='categorical')
+# 训练样本数和验证样本数
 total_train, total_valid = train_data_gen.n, valid_data_gen.n
 
-
+# 生成标签索引字典
 class_indices = train_data_gen.class_indices
 inverse_dict = dict((v, k) for k, v in class_indices.items())
 json_str = json.dumps(inverse_dict, indent=4)
@@ -42,11 +44,11 @@ with open('class_indices.json', 'w') as json_file:
     json_file.write(json_str)
 
 
-
+# 训练模型
 model = AlexNet_v2(class_num=5)
 model.build((batch_size, img_height, img_width, 3))
 model.summary()
-model.compile(optimizer=tf.keras.optimizers.Adam(learnning_rate=0.0005),
+model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.0005),
               loss=tf.keras.losses.CategoricalCrossentropy(from_logits=False),
               metrics=['accuracy'])
 
@@ -62,6 +64,7 @@ history = model.fit(x=train_data_gen,
                     callbacks=callbacks)
 
 
+# 评估模型
 # plot loss and accuracy image
 history_dict = history.history
 train_loss = history_dict["loss"]
