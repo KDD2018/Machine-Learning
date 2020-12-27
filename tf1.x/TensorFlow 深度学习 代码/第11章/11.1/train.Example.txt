@@ -1,0 +1,15 @@
+message Example{
+  Features features = 1;
+};
+
+message Features{
+  map<string, Feature> feature = 1;
+};
+
+meaaage Feature{
+  oneof kind{
+    BytesList bytes_list = 1;
+    FloatList float_list = 2;
+    Int64List int64_list = 3;
+  }
+};
