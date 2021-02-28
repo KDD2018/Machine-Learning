@@ -56,3 +56,7 @@ if __name__ == '__main__':
         mk_file(os.path.join('./flower_data/validation', item))
     # 拆分数据
     split_data(raw_path=image_path, class_names=class_names)
+
+
+
+
