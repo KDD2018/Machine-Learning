@@ -7,6 +7,7 @@ def main():
     # 绑定IP和port
     local_addr = ("", 8190)
     server.bind(local_addr)
+    # 接受发送消息
     while True:
         msg, client_addr = server.recvfrom(1024)
         if msg:

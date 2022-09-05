@@ -6,7 +6,7 @@ def main():
     tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     # 链接服务器
-    server_ip = input('请输入服务器IP：')
+    server_ip = input('请输入服务器IP：') or '192.168.0.106'
     server_port = int(input('请输入服务器端口：'))
     server_addr = (server_ip, server_port)
     tcp_socket.connect(server_addr)
